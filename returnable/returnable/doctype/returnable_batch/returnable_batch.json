@@ -1,31 +1,28 @@
 {
  "actions": [],
- "autoname": "RTN-MOV-.########",
- "creation": "2020-08-31 17:35:23.797949",
+ "autoname": "RTN-BCH-.#########",
+ "creation": "2020-09-03 07:05:11.279411",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "bottle",
+  "timestamp",
   "direction",
+  "directions_section",
   "from_stock",
   "from_customer",
+  "column_break_7",
   "to_customer",
   "to_stock",
-  "timestamp",
-  "bapu_id"
+  "moves_section",
+  "bottles_moved",
+  "bapu_id",
+  "amended_from"
  ],
  "fields": [
   {
-   "fieldname": "timestamp",
-   "fieldtype": "Datetime",
-   "label": "Timestamp"
-  },
-  {
-   "allow_in_quick_entry": 1,
    "fieldname": "direction",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "label": "Direction",
    "options": "Stock --> Cust\nCust --> Stock\nStock --> Stock\nCust --> Cust"
   },
@@ -35,7 +32,6 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "To Customer",
-   "mandatory_depends_on": "doc.direction === \"Cust --> Cust\"\n   || doc.direction === \"Stock --> Cust\";",
    "options": "Customer",
    "search_index": 1
   },
@@ -45,7 +41,6 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "From Customer",
-   "mandatory_depends_on": "doc.direction === \"Cust --> Stock\" \n  || doc.direction === \"Cust --> Cust\" ",
    "options": "Customer",
    "search_index": 1
   },
@@ -55,7 +50,8 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "From Stock",
-   "options": "Warehouse"
+   "options": "Warehouse",
+   "search_index": 1
   },
   {
    "allow_in_quick_entry": 1,
@@ -63,31 +59,74 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "To Stock",
-   "options": "Warehouse"
+   "options": "Warehouse",
+   "search_index": 1
   },
   {
-   "fieldname": "bottle",
+   "fieldname": "amended_from",
    "fieldtype": "Link",
-   "label": "Bottle",
-   "options": "Returnable"
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Returnable Batch",
+   "print_hide": 1,
+   "read_only": 1
   },
   {
-   "default": "0",
+   "fieldname": "directions_section",
+   "fieldtype": "Section Break",
+   "label": "Directions"
+  },
+  {
+   "fieldname": "bottles_moved",
+   "fieldtype": "Table",
+   "label": "Bottles Moved",
+   "options": "Returnable Batch Item"
+  },
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "label": "Timestamp"
+  },
+  {
+   "fieldname": "column_break_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "moves_section",
+   "fieldtype": "Section Break",
+   "label": "Moves"
+  },
+  {
+   "default": "E_0\n",
    "fieldname": "bapu_id",
    "fieldtype": "Data",
-   "label": "BAPU ID",
-   "read_only": 1
+   "label": "BAPU_ID",
+   "read_only": 1,
+   "unique": 1
   }
  ],
- "istable": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2020-09-05 16:01:21.462511",
+ "modified": "2020-09-05 18:29:22.237558",
  "modified_by": "Administrator",
  "module": "Returnable",
- "name": "Returnable Movement",
+ "name": "Returnable Batch",
  "name_case": "UPPER CASE",
  "owner": "Administrator",
- "permissions": [],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
