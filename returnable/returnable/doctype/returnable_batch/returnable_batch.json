@@ -17,6 +17,7 @@
   "moves_section",
   "bottles_moved",
   "bapu_id",
+  "returnables",
   "amended_from"
  ],
  "fields": [
@@ -85,6 +86,8 @@
   {
    "fieldname": "timestamp",
    "fieldtype": "Datetime",
+   "in_filter": 1,
+   "in_list_view": 1,
    "label": "Timestamp"
   },
   {
@@ -97,17 +100,21 @@
    "label": "Moves"
   },
   {
-   "default": "E_0\n",
+   "default": "E_0",
    "fieldname": "bapu_id",
    "fieldtype": "Data",
    "label": "BAPU_ID",
-   "read_only": 1,
-   "unique": 1
+   "read_only": 1
+  },
+  {
+   "fieldname": "returnables",
+   "fieldtype": "Int",
+   "label": "Returnables"
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2020-09-05 18:29:22.237558",
+ "modified": "2020-09-10 17:34:03.581348",
  "modified_by": "Administrator",
  "module": "Returnable",
  "name": "Returnable Batch",
