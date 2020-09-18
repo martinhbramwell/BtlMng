@@ -6,8 +6,12 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "timestamp",
+  "section_break_1",
+  "bapu_id",
   "direction",
+  "column_break_3",
+  "timestamp",
+  "specify_date",
   "directions_section",
   "from_stock",
   "from_customer",
@@ -16,52 +20,44 @@
   "to_stock",
   "moves_section",
   "bottles_moved",
-  "bapu_id",
   "returnables",
   "amended_from"
  ],
  "fields": [
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "direction",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_preview": 1,
    "label": "Direction",
-   "options": "Stock --> Cust\nCust --> Stock\nStock --> Stock\nCust --> Cust"
+   "options": "Stock --> Cust\nCust --> Stock\nStock --> Stock\nCust --> Cust",
+   "reqd": 1,
+   "search_index": 1
   },
   {
-   "allow_in_quick_entry": 1,
    "fieldname": "to_customer",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "To Customer",
-   "options": "Customer",
-   "search_index": 1
+   "options": "Customer"
   },
   {
-   "allow_in_quick_entry": 1,
    "fieldname": "from_customer",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "From Customer",
-   "options": "Customer",
-   "search_index": 1
+   "options": "Customer"
   },
   {
-   "allow_in_quick_entry": 1,
    "fieldname": "from_stock",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "From Stock",
-   "options": "Warehouse",
-   "search_index": 1
+   "options": "Warehouse"
   },
   {
-   "allow_in_quick_entry": 1,
    "fieldname": "to_stock",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "To Stock",
-   "options": "Warehouse",
-   "search_index": 1
+   "options": "Warehouse"
   },
   {
    "fieldname": "amended_from",
@@ -78,17 +74,21 @@
    "label": "Directions"
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "bottles_moved",
    "fieldtype": "Table",
+   "in_preview": 1,
    "label": "Bottles Moved",
-   "options": "Returnable Batch Item"
+   "options": "Returnable Batch Item",
+   "search_index": 1
   },
   {
    "fieldname": "timestamp",
    "fieldtype": "Datetime",
    "in_filter": 1,
    "in_list_view": 1,
-   "label": "Timestamp"
+   "label": "Timestamp",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_7",
@@ -107,15 +107,32 @@
    "read_only": 1
   },
   {
+   "default": "0",
    "fieldname": "returnables",
    "fieldtype": "Int",
-   "label": "Returnables"
+   "label": "Returnables",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "specify_date",
+   "fieldtype": "Check",
+   "label": "Specify Date",
+   "report_hide": 1
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2020-09-10 17:34:03.581348",
- "modified_by": "Administrator",
+ "modified": "2020-09-16 18:09:15.839384",
+ "modified_by": "yourself.yourorg@gmail.com",
  "module": "Returnable",
  "name": "Returnable Batch",
  "name_case": "UPPER CASE",

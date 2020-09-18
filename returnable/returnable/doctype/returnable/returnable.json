@@ -6,14 +6,18 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "id",
   "code",
   "last_customer",
   "state",
+  "bapu_id",
+  "column_break_5",
   "out",
   "in",
+  "fills",
+  "section_break_9",
   "moves",
-  "bapu_id",
+  "last_out",
+  "last_move",
   "amended_from"
  ],
  "fields": [
@@ -23,7 +27,6 @@
    "fieldname": "code",
    "fieldtype": "Data",
    "in_global_search": 1,
-   "in_list_view": 1,
    "in_preview": 1,
    "in_standard_filter": 1,
    "label": "Code",
@@ -31,10 +34,17 @@
    "unique": 1
   },
   {
+   "bold": 1,
    "fieldname": "state",
    "fieldtype": "Select",
-   "label": "State",
-   "options": "Nuevo\nConfuso\nVacio\nLleno\nDonde Cliente"
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Estado",
+   "options": "Nuevo\nConfuso\nVacio\nLleno\nDonde Cliente",
+   "reqd": 1,
+   "translatable": 1
   },
   {
    "allow_on_submit": 1,
@@ -59,29 +69,22 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_preview": 1,
-   "label": "Last Customer",
+   "label": "Ultimo Cliente",
    "options": "Customer"
-  },
-  {
-   "fieldname": "id",
-   "fieldtype": "Data",
-   "label": "ID",
-   "read_only": 1,
-   "unique": 1
   },
   {
    "allow_on_submit": 1,
    "fieldname": "out",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Out"
+   "label": "Salidas"
   },
   {
    "allow_on_submit": 1,
    "fieldname": "in",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "In"
+   "label": "Regresos"
   },
   {
    "allow_in_quick_entry": 1,
@@ -92,11 +95,36 @@
    "label": "BAPU ID",
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fills",
+   "fieldtype": "Int",
+   "label": "Rellenos"
+  },
+  {
+   "fieldname": "last_out",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "last out"
+  },
+  {
+   "fieldname": "section_break_9",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "last_move",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "last move"
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2020-09-05 17:36:22.499269",
+ "modified": "2020-09-17 18:07:57.659159",
  "modified_by": "Administrator",
  "module": "Returnable",
  "name": "Returnable",
