@@ -30,33 +30,33 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_preview": 1,
-   "label": "Direction",
-   "options": "Stock --> Cust\nCust --> Stock\nStock --> Stock\nCust --> Cust",
+   "label": "Direcci\u00f3n",
+   "options": "Stock >> Cust\nCust >> Stock\nStock >> Stock\nCust >> Cust",
    "reqd": 1,
    "search_index": 1
   },
   {
    "fieldname": "to_customer",
    "fieldtype": "Link",
-   "label": "To Customer",
+   "label": "A Cliente",
    "options": "Customer"
   },
   {
    "fieldname": "from_customer",
    "fieldtype": "Link",
-   "label": "From Customer",
+   "label": "Del Cliente",
    "options": "Customer"
   },
   {
    "fieldname": "from_stock",
    "fieldtype": "Link",
-   "label": "From Stock",
+   "label": "Del Inventario",
    "options": "Warehouse"
   },
   {
    "fieldname": "to_stock",
    "fieldtype": "Link",
-   "label": "To Stock",
+   "label": "A Inventario",
    "options": "Warehouse"
   },
   {
@@ -71,14 +71,14 @@
   {
    "fieldname": "directions_section",
    "fieldtype": "Section Break",
-   "label": "Directions"
+   "label": "Direcciones"
   },
   {
    "allow_in_quick_entry": 1,
    "fieldname": "bottles_moved",
    "fieldtype": "Table",
    "in_preview": 1,
-   "label": "Bottles Moved",
+   "label": "Retornables Movidos",
    "options": "Returnable Batch Item",
    "search_index": 1
   },
@@ -87,7 +87,7 @@
    "fieldtype": "Datetime",
    "in_filter": 1,
    "in_list_view": 1,
-   "label": "Timestamp",
+   "label": "Fecha y Hora",
    "read_only": 1
   },
   {
@@ -97,27 +97,27 @@
   {
    "fieldname": "moves_section",
    "fieldtype": "Section Break",
-   "label": "Moves"
+   "label": "Movimientos"
   },
   {
    "default": "E_0",
    "fieldname": "bapu_id",
    "fieldtype": "Data",
-   "label": "BAPU_ID",
+   "label": "Codigo BAPU",
    "read_only": 1
   },
   {
    "default": "0",
    "fieldname": "returnables",
    "fieldtype": "Int",
-   "label": "Returnables",
+   "label": "# de Retornables",
    "read_only": 1
   },
   {
    "default": "0",
    "fieldname": "specify_date",
    "fieldtype": "Check",
-   "label": "Specify Date",
+   "label": "Especificar fecha",
    "report_hide": 1
   },
   {
@@ -131,8 +131,8 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2020-09-16 18:09:15.839384",
- "modified_by": "yourself.yourorg@gmail.com",
+ "modified": "2020-09-20 12:39:11.866130",
+ "modified_by": "Administrator",
  "module": "Returnable",
  "name": "Returnable Batch",
  "name_case": "UPPER CASE",

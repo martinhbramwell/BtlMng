@@ -1,43 +1,32 @@
 {
  "actions": [],
- "autoname": "RTN-BIT-.########",
- "creation": "2020-09-05 06:04:10.018228",
+ "autoname": "RTN-CST-.########",
+ "creation": "2020-09-20 18:12:47.179042",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "bottle",
-  "amended_from"
+  "returnable"
  ],
  "fields": [
   {
    "allow_in_quick_entry": 1,
-   "fieldname": "bottle",
+   "bold": 1,
+   "fieldname": "returnable",
    "fieldtype": "Link",
-   "in_global_search": 1,
    "in_list_view": 1,
    "in_preview": 1,
-   "label": "Retornable",
+   "label": "Returnable",
    "options": "Returnable",
    "reqd": 1
-  },
-  {
-   "fieldname": "amended_from",
-   "fieldtype": "Link",
-   "label": "Amended From",
-   "no_copy": 1,
-   "options": "Returnable Batch Item",
-   "print_hide": 1,
-   "read_only": 1
   }
  ],
- "is_submittable": 1,
  "istable": 1,
  "links": [],
- "modified": "2020-09-19 11:21:30.308755",
+ "modified": "2020-09-20 18:12:47.179042",
  "modified_by": "Administrator",
  "module": "Returnable",
- "name": "Returnable Batch Item",
+ "name": "Returnable Holder",
  "name_case": "UPPER CASE",
  "owner": "Administrator",
  "permissions": [],

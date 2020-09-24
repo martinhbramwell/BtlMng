@@ -42,7 +42,7 @@
    "in_preview": 1,
    "in_standard_filter": 1,
    "label": "Estado",
-   "options": "Nuevo\nConfuso\nVacio\nLleno\nDonde Cliente",
+   "options": "Roto\nConfuso\nSucio\nLleno\nDonde Cliente",
    "reqd": 1,
    "translatable": 1
   },
@@ -124,7 +124,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2020-09-17 18:07:57.659159",
+ "modified": "2020-09-23 11:28:25.964511",
  "modified_by": "Administrator",
  "module": "Returnable",
  "name": "Returnable",
