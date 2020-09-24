@@ -11,6 +11,11 @@ app_color = "grey"
 app_email = "mhb.warehouseman@gmail.com"
 app_license = "MIT"
 
+fixtures = [
+  { "dt": "Custom Field", "filters": [["fieldname", "in", ("returnables", "holdings")]]}
+]
+
+
 # Includes in <head>
 # ------------------
 
