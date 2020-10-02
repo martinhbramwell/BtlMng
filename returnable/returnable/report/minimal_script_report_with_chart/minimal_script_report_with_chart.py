@@ -1,6 +1,8 @@
 # Copyright (c) 2013, Warehouseman and contributors
 # For license information, please see license.txt
 
+import frappe
+
 def query():
   return [
     { "xAxisField":  30, "yAxisField": 4156.78 },
@@ -59,6 +61,11 @@ def get_chart(data, columns, fltr):
   return chart
 
 def execute(filters=None):
+
+  rslt = frappe.db.sql("select name from tabUser")
+  print(rslt)
+  print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+
   query_result = query()
 
   columns = get_columns()
