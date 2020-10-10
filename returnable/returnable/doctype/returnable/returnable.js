@@ -7,18 +7,18 @@ function fixMandatory(frm, name) {
   const current_row = frm.fields_dict["moves"].grid.grid_rows_by_docname[name];
   console.dir(current_row);
 
-  const direction = current_row.columns.direction[0].textContent;
-  console.log(`Current row '${name}' indicates '${direction}'`);
+  // const direction = current_row.columns.direction[0].textContent;
+  // console.log(`Current row '${name}' indicates '${direction}'`);
 
   current_row.toggle_reqd("from_stock", false);
   current_row.toggle_reqd("from_customer", false);
   current_row.toggle_reqd("to_stock", false);
   current_row.toggle_reqd("to_customer", false);
 
-  // current_row.toggle_reqd("from_stock", direction.includes('Stock -->'));
-  // current_row.toggle_reqd("from_customer", direction.includes('Cust -->'));
-  // current_row.toggle_reqd("to_stock", direction.includes('--> Stock'));
-  // current_row.toggle_reqd("to_customer", direction.includes('--> Cust'));
+  // current_row.toggle_reqd("from_stock", direction.includes('Stock >'));
+  // current_row.toggle_reqd("from_customer", direction.includes('Cust >'));
+  // current_row.toggle_reqd("to_stock", direction.includes('> Stock'));
+  // current_row.toggle_reqd("to_customer", direction.includes('> Cust'));
 }
 
 frappe.ui.form.on('Returnable', {
@@ -49,9 +49,9 @@ frappe.ui.form.on("Returnable Movement", {
     var current_row = frm.fields_dict["moves"].grid.grid_rows_by_docname[row.name];
     console.log(`Current row '${row.name}' indicates 'row.direction'`);
 
-    current_row.toggle_reqd("from_stock", row.direction.includes('Stock -->'));
-    current_row.toggle_reqd("from_customer", row.direction.includes('Cust -->'));
-    current_row.toggle_reqd("to_stock", row.direction.includes('--> Stock'));
-    current_row.toggle_reqd("to_customer", row.direction.includes('--> Cust'));
+    current_row.toggle_reqd("from_stock", row.direction.includes('Stock >'));
+    current_row.toggle_reqd("from_customer", row.direction.includes('Cust >'));
+    current_row.toggle_reqd("to_stock", row.direction.includes('> Stock'));
+    current_row.toggle_reqd("to_customer", row.direction.includes('> Cust'));
   }
 });

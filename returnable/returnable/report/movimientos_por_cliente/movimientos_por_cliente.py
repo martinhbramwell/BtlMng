@@ -5,11 +5,12 @@ import frappe
 
 def db_query(filters=None):
   query  = """
-   SELECT IFNULL(from_customer, to_customer) AS Cliente,
+   SELECT
           DATE(M.timestamp) AS Fecha,
-          R.name AS Retornable,
           M.direction AS 'Dirección',
-          R.state AS Estado
+          R.name AS Retornable,
+          R.state AS Estado,
+          IFNULL(from_customer, to_customer) AS Cliente
      FROM `tabReturnable` R
 LEFT JOIN `tabReturnable Movement` M
        ON R.name = M.parent
@@ -26,12 +27,12 @@ LEFT JOIN `tabReturnable Movement` M
 
 def get_columns():
   return [
-    {
-      "fieldname": "Cliente",
-      "fieldtype": "Data",
-      "label": "Cliente",
-      "width": 250
-    },
+    # {
+    #   "fieldname": "Cliente",
+    #   "fieldtype": "Data",
+    #   "label": "Cliente",
+    #   "width": 250
+    # },
     {
       "fieldname": "Fecha",
       "fieldtype": "Date",
@@ -39,16 +40,16 @@ def get_columns():
       "width": 100
     },
     {
-      "fieldname": "Retornable",
-      "fieldtype": "Data",
-      "label": "Retornable",
-      "width": 90
-    },
-    {
       "fieldname": "Direccion",
       "fieldtype": "Data",
       "label": "Dirección",
       "width": 100
+    },
+    {
+      "fieldname": "Retornable",
+      "fieldtype": "Data",
+      "label": "Retornable",
+      "width": 90
     },
     {
       "fieldname": "Estado",

@@ -7,7 +7,7 @@ export QTST_DIR="/dev/shm/qtst";
 
 mkdir -p ${QTST_DIR};
 
-if [[ 1 == 1 ]]; then
+if [[ 1 == 0 ]]; then
 cat << EOF > ${QTST_DIR}/qtst.py
 
 # query_result = [
@@ -79,24 +79,257 @@ cat chart.json;
 else
 
 
-   # SELECT last_customer AS "Last Customer", state AS "Current State", count(*) as qty, IFNULL(M.to_customer, M.to_stock) AS "Last Location"
 cat << EOF > ${QTST_DIR}/qtst.sql
---   SELECT *
-   SELECT IFNULL(from_customer, to_customer) AS Cliente, DATE(M.timestamp) AS Fecha, R.name AS Retornable, M.direction AS 'Dirección', R.state AS Estado
-     FROM \`tabReturnable\` R
-LEFT JOIN \`tabReturnable Movement\` M
-       ON R.name = M.parent
-      AND IFNULL(to_customer, from_customer) = 'Ines Checa'
-    WHERE R.state NOT IN ('Confuso')
-      AND M.direction NOT IN ('Stock >> Stock')
-      AND M.direction IS NOT NULL
- ORDER BY IFNULL(to_customer, from_customer), timestamp, direction
+
+    # SELECT 'Loading temporary table \`RTN_HLD\` from \`tabReturnable\`, \`tabReturnable Batch\` and \`tabReturnable Batch Item\`' \G
+
+    # DROP TABLE IF EXISTS \`RTN_HLD\`;
+
+    # CREATE TABLE \`RTN_HLD\`
+    #   (name INT AUTO_INCREMENT PRIMARY KEY)
+    # AS
+
+
+    # SELECT
+    #   *
+    # FROM
+    #     \`tabReturnable\` R
+    # # WHERE
+    # #       B.timestamp > '2020-09-18 13:03:29.000000'
+    # ORDER BY R.bapu_id asc
+    # LIMIT 5;
+
+    # SELECT
+    #     I.parent
+    #   , I.name
+    #   , I.idx
+    #   , I.bottle
+    #   , I.creation
+    # FROM
+    #     \`tabReturnable Batch Item\` I
+    # WHERE I.creation > '2020-10-06 15:15:58.000000'
+    # ORDER BY I.creation desc
+    # # LIMIT 15
+    # ;
+
+
+    # SELECT
+    #     R.name
+    #   , R.last_customer
+    #   , R.state
+    #   , R.last_out
+    #   , R.last_move
+    # FROM
+    #     \`tabReturnable\` R
+    # LIMIT 5
+    # ;
+
+
+    # SELECT
+    #     *
+    # SELECT
+    # SELECT SQL_CALC_FOUND_ROWS
+    #     *
+
+# keep  # SELECT SQL_CALC_FOUND_ROWS
+#       #     B.timestamp as creation
+#       #   , B.timestamp as modified
+#       #   , 'Administrator' as modified_by
+#       #   , 'Administrator' as owner
+#       #   , 0 as docstatus
+#       #   , R.last_customer as parent
+#       #   , 'retornables' as parentfield
+#       #   , 'Customer' as parenttype
+#       #   , 1 as idx
+#       #   , R.name as returnable
+#       # FROM
+#       #     \`tabReturnable\` R
+#       #   , \`tabReturnable Batch\` B
+#       #   , \`tabReturnable Batch Item\` I
+#       # WHERE
+#       #       I.bottle = R.name
+#       #   AND R.state IN ('Donde Cliente')
+#       #   AND B.to_customer = R.last_customer
+#       #   AND R.last_customer NOT IN ('Envases Rotos', 'ALERTAR')
+#       #   AND R.last_out = R.last_move
+#       #   AND I.parent = B.name
+#       #   AND B.direction NOT IN ('Cust >> Stock', 'Stock >> Stock')
+#       #   AND B.bapu_id in (
+#       #        SELECT
+#       #            MAX(M.bapu_id)
+#       #          # , B.to_customer
+#       #          # , I.bottle
+#       #        FROM
+#       #            \`tabReturnable Batch\` M
+#       #          , \`tabReturnable Batch Item\` N
+#       #        WHERE N.parent = M.name
+#       #          AND M.to_customer IS NOT NULL
+#       #          AND M.to_customer = B.to_customer
+#       #          AND N.bottle = I.bottle
+#       #     GROUP BY M.to_customer, N.bottle
+#       #   )
+#       # #   AND R.name in ('IBDD290', 'IBDD911', 'IBDD267', 'IBDD742', 'IBDD146', 'IBAA967', 'IBDD254', 'IBCC210', 'IBAA025', 'IBAA415', 'IBDD862', 'IBDD655', 'IBDD615', 'IBDD563', 'IBCC296', 'IBAA553', 'IBCC331', 'IBAA522', 'IBCC916', 'IBDD661')
+#       # # GROUP BY R.name
+#       # # HAVING cnt > 2
+#       # ORDER BY R.last_customer, I.bottle, B.creation desc
+#       # # LIMIT 8
+#       # ;
+#       # ;
+#       # SELECT FOUND_ROWS();
+# keep  # ;
+
+SELECT * FROM \`tabReturnable Holder\` ORDER BY name DESC LIMIT 20;
+
+SELECT "SHOW INDICES FROM \`tabReturnable\`, \`tabReturnable Batch\` AND \`tabReturnable Batch Item\`" \G
+SHOW INDEX FROM \`tabReturnable\`;
+SHOW INDEX FROM \`tabReturnable Batch\`;
+SHOW INDEX FROM \`tabReturnable Batch Item\`;
+
+    # SELECT DISTINCT  SQL_CALC_FOUND_ROWS
+    SELECT SQL_CALC_FOUND_ROWS
+        direction as Direccion
+      # , timestamp as creation
+      # , timestamp as modified
+      # , 'Administrator' as modified_by
+      # , 'Administrator' as owner
+      # , 0 as docstatus
+      # , I.bottle as parent
+      # , 'moves' as parentfield
+      # , 'Returnable' as parenttype
+      # , 1 as idx
+      , from_stock as "Del Almacén"
+      , from_customer as "Del Cliente"
+      , to_customer as "Al Cliente"
+      , to_stock as "Al Almacén"
+      , DATE(B.timestamp) as "Fecha"
+      , bapu_id as "ID BAPU"
+      # , IFNULL(from_customer, to_customer) as if_customer
+    FROM 
+        \`tabReturnable Batch\` B
+      , \`tabReturnable Batch Item\` I 
+    WHERE 
+        B.name = I.parent
+    AND I.bottle = "IBEE089"
+    ORDER BY I.bottle, timestamp
+    # LIMIT 4
+    ;
+
+SELECT FOUND_ROWS();
+
+# describe \`tabReturnable Batch\`;
+    
+    # LIMIT 5
+    # ;
+         # AND I.bottle in ('IBDD290', 'IBDD911', 'IBDD267', 'IBDD742', 'IBDD146', 'IBAA967', 'IBDD254', 'IBCC210', 'IBAA025', 'IBAA415', 'IBDD862', 'IBDD655', 'IBDD615', 'IBDD563', 'IBCC296', 'IBAA553', 'IBCC331', 'IBAA522', 'IBCC916', 'IBDD661')
+
+
+    # SELECT * FROM \`RTN_HLD\` ORDER BY name DESC LIMIT 10;
+
+
+    # SELECT 'Loading temporary table \`RTN_HLD\` from \`tabReturnable\`, \`tabReturnable Batch\` and \`tabReturnable Batch Item\`' \G
+
+    # DROP TABLE IF EXISTS \`RTN_HLD\`;
+
+    # CREATE TABLE \`RTN_HLD\`
+    #   (name INT AUTO_INCREMENT PRIMARY KEY)
+    # AS
+    # SELECT DISTINCT
+    #     B.timestamp as creation
+    #   , B.timestamp as modified
+    #   , 'Administrator' as modified_by
+    #   , 'Administrator' as owner
+    #   , 0 as docstatus
+    #   , R.last_customer as parent
+    #   , 'retornables' as parentfield
+    #   , 'Customer' as parenttype
+    #   , 1 as idx
+    #   , R.name as returnable
+    # FROM
+    #     \`tabReturnable\` R
+    #   , \`tabReturnable Batch\` B
+    #   , \`tabReturnable Batch Item\` I
+    # WHERE
+    #       B.to_customer = R.last_customer
+    #   AND I.bottle = R.code
+    #   AND I.idx = R.last_out
+    #   AND I.parent = B.name
+    #   AND R.state = 'Donde Cliente'
+    # ORDER BY R.last_customer
+    # ;
+
+    # SELECT * FROM \`RTN_HLD\` ORDER BY name DESC LIMIT 10;
+
+
+    # SELECT 'Loading \`tabReturnable Holder\` from \`temporary table\`' \G
+
+    # DELETE
+    # FROM \`tabReturnable Holder\`
+    # ;
+
+    # INSERT INTO \`tabReturnable Holder\` (
+    #     name
+    #   , creation
+    #   , modified
+    #   , modified_by
+    #   , owner
+    #   , docstatus
+    #   , parent
+    #   , parentfield
+    #   , parenttype
+    #   , idx
+    #   , returnable
+    # )
+    # SELECT
+    #     CONCAT('RTN-CST-', LPAD(name, 8, "0")) AS name
+    #   , creation
+    #   , modified
+    #   , modified_by
+    #   , owner
+    #   , docstatus
+    #   , parent
+    #   , parentfield
+    #   , parenttype
+    #   , idx
+    #   , returnable
+    # FROM \`RTN_HLD\`
+    # ;
+
+    # SELECT * FROM \`tabReturnable Holder\` ORDER BY name DESC LIMIT 20;
+
+
+    # SELECT 'Resetting \`tabReturnable Holder\` row indexes' \G;
+
+    # UPDATE \`tabReturnable Holder\` TH,
+    #   (
+    #     SELECT
+    #       @idx := IF(@returnable = parent, @idx + 1, 1) idx,
+    #       @returnable := parent parent,
+    #       name
+    #     FROM
+    #       (SELECT @returnable := NULL, @idx := 1) vars
+    #       JOIN \`tabReturnable Holder\`
+    #     ORDER BY
+    #       parent, name
+    #   ) XX
+    # SET TH.idx=XX.idx WHERE TH.name=XX.name
+    # ;
+
+    # SELECT * FROM \`tabReturnable Holder\` ORDER BY name DESC LIMIT 10;
+
 EOF
-    # LIMIT 2 \G
-# --      AND R.last_customer = M.to_customer
-#       AND R.last_move = M.idx
-#    HAVING qty > 5
-#  ORDER BY last_customer, state
+
+# cat << EOF > ${QTST_DIR}/qtst.sql
+#    SELECT IFNULL(from_customer, to_customer) AS Cliente, DATE(M.timestamp) AS Fecha, R.name AS Retornable, M.direction AS 'Dirección', R.state AS Estado
+#      FROM \`tabReturnable\` R
+# LEFT JOIN \`tabReturnable Movement\` M
+#        ON R.name = M.parent
+#       AND IFNULL(to_customer, from_customer) = 'Ines Checa'
+#     WHERE R.state NOT IN ('Confuso')
+#       AND M.direction NOT IN ('Stock >> Stock')
+#       AND M.direction IS NOT NULL
+#  ORDER BY IFNULL(to_customer, from_customer), timestamp, direction
+# EOF
+#     # LIMIT 2 \G
 
 
 # cat << EOF > ${QTST_DIR}/qtst.sql
@@ -175,9 +408,12 @@ EOF
 echo -e "
 ";
 
+# cat << EOF > ${QTST_DIR}/qtst.sql
+
+# EOF
+
 mysql -t ${1} < ${QTST_DIR}/qtst.sql;
 fi;
 
-echo -e "\n\n/* ~~~~~~~~~ Curtailed ~~~~~~~ ${SCRIPT_NAME} ~~~~~~~~ */
-";
+echo -e "\n/* ~~~~~~~~~ Curtailed ~~~~~~~ ${SCRIPT_NAME} ~~~~~~~~ */";
 exit;

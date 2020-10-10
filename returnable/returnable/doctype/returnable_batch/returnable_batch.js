@@ -14,6 +14,7 @@ const stockStock = `${fromStock}${toStock}`;
 
 const full = { filters: [["Returnable", "state", "=", "Lleno"]] };
 const empty = { filters: [["Returnable", "state", "=", "Vacio"]] };
+// const broken = { filters: [["Returnable", "state", "=", "Lleno"]] };
 const atClient = { filters: [["Returnable", "state", "=", "Donde Cliente"]] };
 ;
 const notAtClient = { filters: [["Returnable", "state", "!=", "Donde Cliente"]] };
@@ -23,6 +24,7 @@ const fromStockLookUp = {
   'Envases IB Sucios - LSSA': empty,
   '': notAtClient,
 };
+  // 'Envases IB Rotos - LSSA': broken,
 
 
 const fromCustLookUp = (source) => {
@@ -82,6 +84,7 @@ function adjustForDirection(frm) {
     () => ({ filters: [
       ["Warehouse", "parent", "=", "Envases Iridium Blue - LSSA"],
       ["Warehouse", "name", "!=", TS],
+      ["Warehouse", "name", "!=", "Envases IB Rotos - LSSA"],
     ] });
 
 

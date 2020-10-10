@@ -17,7 +17,12 @@ CUSTSTOCK = FROMCUST + TOSTOCK
 STOCKCUST = FROMSTOCK + TOCUST
 STOCKSTOCK = FROMSTOCK + TOSTOCK
 
-qryGetState = "SELECT code FROM `tabReturnable` where state = '{0}' and code in ({1})";
+qryGetState = """
+    SELECT code
+      FROM `tabReturnable`
+     WHERE state = '{0}'
+       AND code IN ({1})
+""";
 
 FULL = 'Lleno'
 INDETERMINATE = 'Confuso'
@@ -164,6 +169,14 @@ def stockStock(frm):
       noSuchProduct.format(fs, 'el' if ul == 1 else 'los', '' if ul == 1 else 's', list2String(lstUnavailables))
     )
 
+# @frappe.whitelist()
+# def loadReturnablesStates(direction):
+#   # msgprint(_("Direction is :: {0} ").format(direction) )
+#   actualReturnablesInWarehouse = frappe.db.sql("select count(*) from `tabReturnable`");
+
+#   print(' *** *** *** ***  Direction ', direction, ' <> ', type(actualReturnablesInWarehouse), ' *** *** *** *** *** ');
+#   return ("Returnables Count :: {0} ").format(actualReturnablesInWarehouse);
+
 
 directions = {}
 directions[CUSTCUST] = custCust
@@ -179,7 +192,7 @@ class ReturnableBatch(Document):
 	
   def validate(self):
 
-    exceptionMessages.append('DUMMY')
+    # exceptionMessages.append('DUMMY')
 
     print(' *** *** *** ***  Direction ', self.direction, ' <> ', ' *** *** *** *** *** ');
     directions[self.direction](self)
@@ -198,10 +211,24 @@ class ReturnableBatch(Document):
       exceptionMessages.append('Errores:')
       frappe.throw(_(exceptionMessage))
 
-# @frappe.whitelist()
-# def loadReturnablesStates(direction):
-#   # msgprint(_("Direction is :: {0} ").format(direction) )
-#   actualReturnablesInWarehouse = frappe.db.sql("select count(*) from `tabReturnable`");
+  def autoname(self):
 
-#   print(' *** *** *** ***  Direction ', direction, ' <> ', type(actualReturnablesInWarehouse), ' *** *** *** *** *** ');
-#   return ("Returnables Count :: {0} ").format(actualReturnablesInWarehouse);
+    print(' ---------------------------------- autoname --------------------------------- ');
+    print(self);
+
+  def before_insert(self):
+
+    print(' ---------------------------------- before_insert --------------------------------- ');
+    print(self);
+
+  def on_update(self):
+
+    print(' ---------------------------------- on_update --------------------------------- ');
+    print(self);
+
+  def on_submit(self):
+
+    print(' ---------------------------------- on_submit --------------------------------- ');
+    print(self);
+
+    # frappe.throw(_('  fail until correctly coded '))

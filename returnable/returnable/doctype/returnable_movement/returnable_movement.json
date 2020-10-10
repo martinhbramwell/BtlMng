@@ -28,7 +28,7 @@
    "fieldname": "direction",
    "fieldtype": "Select",
    "label": "Direction",
-   "options": "Stock --> Cust\nCust --> Stock\nStock --> Stock\nCust --> Cust",
+   "options": "Stock >> Cust\nCust >> Stock\nStock >> Stock\nCust >> Cust",
    "reqd": 1
   },
   {
@@ -37,7 +37,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "To Customer",
-   "mandatory_depends_on": "doc.direction === \"Cust --> Cust\"\n   || doc.direction === \"Stock --> Cust\";",
+   "mandatory_depends_on": "doc.direction === \"Cust >> Cust\"\n   || doc.direction === \"Stock >> Cust\";",
    "options": "Customer",
    "search_index": 1
   },
@@ -47,7 +47,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "From Customer",
-   "mandatory_depends_on": "doc.direction === \"Cust --> Stock\" \n  || doc.direction === \"Cust --> Cust\" ",
+   "mandatory_depends_on": "doc.direction === \"Cust >> Stock\" \n  || doc.direction === \"Cust >> Cust\" ",
    "options": "Customer",
    "search_index": 1
   },
@@ -73,6 +73,14 @@
    "fieldtype": "Data",
    "label": "BAPU ID",
    "read_only": 1
+  },
+  {
+   "fieldname": "if_customer",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "If Customer",
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "istable": 1,
