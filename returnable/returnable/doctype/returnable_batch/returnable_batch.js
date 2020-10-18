@@ -1,7 +1,6 @@
 const returnablesBatch = cur_frm.fields_dict;
 const returnablesTable = returnablesBatch.bottles_moved.grid;
 
-
 const toCust = '> Cust';
 const toStock = '> Stock';
 const fromCust = 'Cust >';
@@ -12,48 +11,58 @@ const custStock = `${fromCust}${toStock}`;
 const stockCust = `${fromStock}${toCust}`;
 const stockStock = `${fromStock}${toStock}`;
 
-const full = { filters: [["Returnable", "state", "=", "Lleno"]] };
-const empty = { filters: [["Returnable", "state", "=", "Vacio"]] };
-// const broken = { filters: [["Returnable", "state", "=", "Lleno"]] };
-const atClient = { filters: [["Returnable", "state", "=", "Donde Cliente"]] };
-;
-const notAtClient = { filters: [["Returnable", "state", "!=", "Donde Cliente"]] };
+const full = alreadyChosen => {
+  alreadyChosen.filters.push(["Returnable", "state", "=", "Lleno"]);
+  return alreadyChosen;
+};
 
-const fromStockLookUp = {
+const empty = alreadyChosen => {
+  alreadyChosen.filters.push(["Returnable", "state", "=", "Sucio"]);
+  return alreadyChosen;
+};
+
+const noData = alreadyChosen => {
+  alreadyChosen.filters.push(["Returnable", "state", "=", "Find none"]);
+  return alreadyChosen;
+};
+
+const stocks = {
   'Envases IB Llenos - LSSA': full,
   'Envases IB Sucios - LSSA': empty,
-  '': notAtClient,
+  '': noData,
+}
+
+const fromStockLookUp = (alreadyChosen, source) => {
+  console.log(`fromStockLookUp :: alreadyChosen`);
+  console.dir(alreadyChosen);
+  console.dir(source);
+  return stocks[source.fromStock](alreadyChosen);
 };
-  // 'Envases IB Rotos - LSSA': broken,
 
-
-const fromCustLookUp = (source) => {
-  const fil = { filters: [["Returnable", "state", "=", "Donde Cliente"], ["Returnable", "last_customer", "=", source]] };
-  console.dir(fil);
-  return fil;
+const fromCustLookUp = (alreadyChosen, source) => {
+  alreadyChosen.filters.push(["Returnable", "last_customer", "=", source.fromCustomer]);
+  alreadyChosen.filters.push(["Returnable", "state", "=", "Donde Cliente"]);
+  console.log(`fromCustLookUp: `);
+  console.dir(alreadyChosen);
+  return alreadyChosen;
 };
 
-// const setFromCust = () => empty;
-const setStockCust = () => full;
-
-const setStockStock = (stock = '', customer = '') => fromStockLookUp[stock];
-// const setStockStock = (stock = '', customer = '') => () => {
-//   console.log('!!!!!!!!');
-//   return 'qwerty';
-// };
-
-// const setCustCust = (stock = '', customer = '') => fromCustLookUp(customer);
-const setFromCust = (stock = '', customer = '') => fromCustLookUp(customer);
+// const setStockCust = alreadyChosen => full(alreadyChosen);
+const setStockStock = (alreadyChosen, source) => fromStockLookUp(alreadyChosen, source);
+const setFromCust = (alreadyChosen, source) => fromCustLookUp(alreadyChosen, source);
 
 const stateLookUp = {};
-// stateLookUp['Cust >> Cust'] = setFromCust;
-// stateLookUp['Cust >> Stock'] = setFromCust;
-// stateLookUp['Stock >> Cust'] = setStockCust;
-// stateLookUp['Stock >> Stock'] = setStockStock;
 stateLookUp[`${custCust}`] = setFromCust;
 stateLookUp[`${custStock}`] = setFromCust;
-stateLookUp[`${stockCust}`] = setStockCust;
+stateLookUp[`${stockCust}`] = setStockStock;
 stateLookUp[`${stockStock}`] = setStockStock;
+
+const contentsBottlesMoved = (frm) => {
+  const returnables = [];
+  const tmp = frm.doc.bottles_moved || [];
+  tmp.forEach(row => returnables.push(["Returnable", "name", "!=", row.bottle]));
+  return { filters: returnables };
+}
 
 function adjustForDirection(frm) {
   const dir = frm.doc.direction;
@@ -69,39 +78,59 @@ function adjustForDirection(frm) {
     TC: >${TC}<
   `);
 
-  const fil = stateLookUp[dir](FS, FC);
-  console.log('fil...');
-  console.dir(fil);
-  returnablesTable.get_field('bottle').get_query = () => fil;
+  const DFS = FS;
+  const DFC = "Envases IB Llenos - LSSA";
+  const DTS = "Envases IB Sucios - LSSA";
+  const DTC = TC;
+  const disallowMove = { "from": {}, "to": {} };
+  disallowMove.to[custCust] = DFC;
+  disallowMove.to[custStock] = DFC;
+  disallowMove.to[stockCust] = DFS;
+  disallowMove.to[stockStock] = DFS;
+  disallowMove.from[custCust] = DTC;
+  disallowMove.from[custStock] = DTC;
+  disallowMove.from[stockCust] = DTS;
+  disallowMove.from[stockStock] = DTC;
+
+
+  const alreadyChosen = contentsBottlesMoved(frm);
+  console.log('alreadyChosen');
+  console.dir(alreadyChosen);
+  const returnablesFilters = stateLookUp[dir](alreadyChosen, { fromStock: FS, fromCustomer: FC });
+  console.log('returnablesFilters...');
+  console.dir(returnablesFilters);
+  let cnt = 1;
+  returnablesFilters.filters.forEach(filter => {
+    console.log(` ${cnt}/. Filter : ${filter[0]}'s ${filter[1]} ${filter[2]} '${filter[3]}'`);
+  });
+
+  returnablesTable.get_field('bottle').get_query = () => returnablesFilters;
 
   cur_frm.fields_dict.to_stock.get_query = 
     () => ({ filters: [
       ["Warehouse", "parent", "=", "Envases Iridium Blue - LSSA"],
-      ["Warehouse", "name", "!=", FS],
+      ["Warehouse", "name", "!=", disallowMove.to[dir]],
     ] });
+
 
   cur_frm.fields_dict.from_stock.get_query = 
     () => ({ filters: [
       ["Warehouse", "parent", "=", "Envases Iridium Blue - LSSA"],
-      ["Warehouse", "name", "!=", TS],
+      ["Warehouse", "name", "!=", disallowMove.from[dir]],
       ["Warehouse", "name", "!=", "Envases IB Rotos - LSSA"],
     ] });
 
 
   cur_frm.fields_dict.to_customer.get_query = 
     () => ({ filters: [
-      ["Customer", "name", "!=", FC],
+      ["Customer", "name", "!=", disallowMove.to[dir]],
     ] });
 
   cur_frm.fields_dict.from_customer.get_query = 
     () => ({ filters: [
-      ["Customer", "name", "!=", TC],
+      ["Customer", "name", "!=", disallowMove.from[dir]],
     ] });
 
-  // cur_frm.get_field('to_stock').get_query = () => { filters: [["Warehouse", "parent", "=", "Envases Iridium Blue - LSSA"]] };
-  // cur_frm.get_field('from_stock').get_query = () => { filters: [["Warehouse", "parent", "=", "Envases Iridium Blue - LSSA"]] };
-
-  // returnablesTable.refresh_field('bottle');
   frm.refresh_field('bottles_moved');
 
   frm.set_df_property('to_customer', 'reqd', dir.includes(toCust));
@@ -118,12 +147,10 @@ function adjustForDirection(frm) {
 
 frappe.ui.form.on('Returnable Batch', {
 	setup: function(frm) {
-    console.log(`setup ${frm.doc.direction} >${returnablesTable}<`);
-    console.dir(returnablesTable);
+    console.log(`setup ${frm.doc.direction}`);
     adjustForDirection(frm);
     frm.set_value('timestamp', frappe.datetime.now_datetime());
-    frm.set_df_property('timestamp', 'hidden', 0);
-    // frm.set_value('timestamp', Date.now());
+    frm.set_df_property('timestamp', 'read_only', 1);
   },
   onload: function(frm) {
     console.log('onload');
@@ -131,11 +158,6 @@ frappe.ui.form.on('Returnable Batch', {
   },
   refresh: async function(frm) {
     console.log(`refreshed : ${frm.doc.direction}`);
-    // const resp = await cur_frm.call({
-    //   method: "loadReturnablesStates",
-    //   args: { direction: frm.doc.direction }
-    // });
-    // console.log(resp.message);
   },
   validate: (frm, cdt, cdn) => {
     console.log(`Validating '${cdt}' :: ${cdn}`);
@@ -143,16 +165,21 @@ frappe.ui.form.on('Returnable Batch', {
   direction: (frm, cdt, cdn) => {
     console.log(`Direction :: ${frm.doc.direction}`);
     adjustForDirection(frm);
-    
+    frm.clear_table("bottles_moved")
+    frm.refresh_field('bottles_moved');
     frm.refresh();
   },
   from_customer: (frm, cdt, cdn) => {
     console.log(`From Customer '${frm.doc.from_customer}' to  TS: '${frm.doc.to_stock}' TC: '${frm.doc.to_customer}'`);
+    frm.clear_table("bottles_moved")
+    frm.refresh_field('bottles_moved');
     adjustForDirection(frm);
     frm.refresh();
   },
   from_stock: (frm, cdt, cdn) => {
     console.log(`From Stock '${frm.doc.from_stock}' to  TS: '${frm.doc.to_stock}' TC: '${frm.doc.to_customer}'`);
+    frm.clear_table("bottles_moved")
+    frm.refresh_field('bottles_moved');
     adjustForDirection(frm);    
     frm.refresh();
   },
@@ -166,16 +193,6 @@ frappe.ui.form.on('Returnable Batch', {
     adjustForDirection(frm);    
     frm.refresh();
   },
-  // to_stock: (frm, cdt, cdn) => {
-  //   // const fldFromStock = returnablesBatch.get_field('from_stock');
-  //   console.log(`To Stock '${frm.doc.to_stock}' from '${frm.doc.from_stock}'`);
-  //   // console.dir(fldFromStock);
-  //   adjustForDirection(frm);
-  //   // if (frm.doc.direction = stockStock) {
-  //   //   returnablesBatch.get_field('from_stock').get_query = 
-  //   //     () => ({ filters: [["Warehouse", "name", "=", "Lleno"]] });
-  //   // }
-  // },
   specify_date: (frm, cdt, cdn) => {
     console.log(`specify_date ${cdn} (${cdt}):  ${frm.doc.specify_date}` );
     console.dir(frappe.datetime);
@@ -186,9 +203,10 @@ frappe.ui.form.on('Returnable Batch', {
 
 frappe.ui.form.on('Returnable Batch Item', {
   bottle: (frm, cdt, cdn) => {
-    console.log(`Returnable Batch Item:`);
-    console.log(`    | bottle ${cdn} (${cdt}):`);
+    console.log(`ON Returnable Batch Item >> bottle ${cdn} (${cdt}):`);
+    adjustForDirection(frm);
   },
+
   form_render: (frm, cdt, cdn) => {
     console.log(`Returnable Batch Item: form_render`);
   },
