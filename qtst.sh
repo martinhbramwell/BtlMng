@@ -552,8 +552,8 @@ UPDATE \`tabReturnable Batch\`
     SELECT 'Tenencias del Cliente' \G
 
     SELECT SQL_CALC_FOUND_ROWS
-          B.name          AS \`Lote\`
-        , I.name          AS \`Item de Lote\`
+          B.name          AS \`Lote\`"
+        , "I.name          AS \`Item de Lote\`
         , B.timestamp     AS \`Fecha\`
 --        , B.docstatus     AS \`Estado\`
         , C.Retornable    AS \`Retornable\`
@@ -599,8 +599,8 @@ SELECT FOUND_ROWS();
     SELECT
           C.Retornable      AS \`Retornable\`
         , DATE(B.timestamp) AS \`Desde\`
-        , CONCAT("<a href='/desk#Form/Returnable%20Batch/", B.name, "' target='_blank'>", B.name,"</a>") as \`Lote\`
-        , I.name            AS \`Item\`
+        , CONCAT("<a href='/desk#Form/Returnable%20Batch/", B.name, "' target='_blank'>", B.name,"</a>") as \`Lote\`"
+        , "I.name            AS \`Item\`
         , B.bapu_id         AS \`IDBAPU\`
       FROM
           \`tabReturnable Batch\` B
@@ -906,10 +906,10 @@ SET @CUSTOMER := "Avix%";
     SELECT SQL_CALC_FOUND_ROWS
           C.Retornable      AS \`Retornable\`
         , DATE(B.timestamp) AS \`Desde\`
-        , CONCAT("<a href='/desk#Form/Returnable%20Batch/", B.name, "' target='_blank'>", B.name,"</a>") as \`Lote\`
-        , I.name            AS \`Item\`
-        , B.docstatus       AS \`Status\`
-        , I.docstatus       AS \`Item Status\`
+        , CONCAT("<a href='/desk#Form/Returnable%20Batch/", B.name, "' target='_blank'>", B.name,"</a>") as \`Lote\`"
+        , "I.name            AS \`Item\`
+        , B.docstatus       AS \`Status\`"
+        , "I.docstatus       AS \`Item Status\`
         , B.bapu_id         AS \`IDBAPU\`
         , B.to_customer     AS \`Customer\`
       FROM
@@ -961,9 +961,334 @@ SELECT MAX(I.name) from \`tabReturnable Batch Item\` I;
 #         GROUP BY Retornable
 # ;
 
+# SHOW CREATE TABLE \`tabReturnable\`;
+SELECT
+    name
+  , docstatus
+  , parent
+  , idx
+  , naming_series
+  , code
+  , state
+  , times_out
+  , times_in
+  , id
+  , last_customer
+  , bapu_id
+  , fills
+  , last_out
+  , last_move
+  FROM \`tabReturnable\`
+ LIMIT 1
+ \G
+
+  SELECT
+      name
+    , docstatus
+    , parent
+    , idx
+    , naming_series
+    , code
+    , state
+    , times_out
+    , times_in
+    , id
+    , last_customer
+    , bapu_id
+    , fills
+    , last_out
+    , last_move
+  FROM \`tabReturnable\`
+ORDER BY name DESC
+ LIMIT 5
+;
+SELECT 'Showed \`tabReturnable\`\n\n\n' as \`Comment\` \G;
+
+SELECT
+    name
+  , docstatus
+  , parent
+  , idx
+  , bottle
+  , direction
+  , from_stock
+  , from_customer
+  , to_customer
+  , to_stock
+  , timestamp
+  , bapu_id
+  , if_customer
+  FROM \`tabReturnable Movement\`
+ LIMIT 1
+ \G
+
+  SELECT
+        name
+      , docstatus
+      , parent
+      , idx
+      , bottle
+      , direction
+      , from_stock
+      , from_customer
+      , to_customer
+      , to_stock
+      , timestamp
+      , bapu_id
+      , if_customer
+    FROM \`tabReturnable Movement\`
+ORDER BY name DESC
+ LIMIT 5
+;
+SELECT 'Showed \`tabReturnable Movement\`\n\n\n' as \`Comment\` \G;
+
+SELECT 
+    name
+  , docstatus
+  , parent
+  , idx
+  , returnable
+  , batch
+  , batch_item
+  FROM \`tabReturnable Holder\`
+ LIMIT 1
+ \G
+
+  SELECT 
+      name
+    , docstatus
+    , parent
+    , idx
+    , returnable
+    , batch
+    , batch_item
+  FROM \`tabReturnable Holder\`
+ORDER BY name DESC
+ LIMIT 5
+;
+SELECT 'Showed \`tabReturnable Holder\` \n\n\n' as \`Comment\` \G;
 
 SREOF
 
+
+cat << WHEOF > ${QTST_DIR}/qtst.sql
+
+CREATE TEMPORARY TABLE \`tabBottlesFilledAtLeastOnce\` 
+  (returnable varchar(140) NOT NULL, PRIMARY KEY(returnable), INDEX(name), INDEX(direction), INDEX(first_move)) AS
+  SELECT parent AS returnable, name, direction, MIN(modified) AS first_move, from_stock, to_stock
+    FROM  \`tabReturnable Movement\`
+   WHERE parent IS NOT NULL
+     AND parent != ''
+     # AND parent NOT LIKE 'C%'
+     AND to_stock IS NOT NULL
+     AND direction = 'Stock >> Stock'
+GROUP BY parent
+ORDER BY parent, modified
+;
+SELECT * 
+  FROM \`tabBottlesFilledAtLeastOnce\`
+LIMIT 25;
+SELECT 'Showed first FILLING of each returnable from \`tabBottlesFilledAtLeastOnce\`! \n\n\n' as \`Comment\` \G;
+
+
+
+CREATE TEMPORARY TABLE \`tabBottlesNeverOnceFilled\` 
+  (returnable varchar(140) NOT NULL, PRIMARY KEY(returnable), INDEX(last_move)) AS
+   SELECT M.parent AS returnable, MAX(M.NAME) AS last_move
+     FROM \`tabReturnable Movement\` M
+LEFT JOIN \`tabBottlesFilledAtLeastOnce\` F
+       ON M.parent = F.returnable
+    WHERE F.returnable IS NULL
+      # AND M.parent = @rtrnbl
+ GROUP BY M.parent
+ ORDER BY M.parent, M.modified
+;
+SELECT * 
+  FROM \`tabBottlesNeverOnceFilled\`
+LIMIT 5
+;
+SELECT 'Showed last move of never filled returnables from \`tabBottlesNeverOnceFilled\`! \n\n\n' as \`Comment\` \G;
+
+
+
+CREATE TEMPORARY TABLE \`tabBottlesUnfilledNoLongerUseable\` 
+  (returnable varchar(140) NOT NULL, PRIMARY KEY(returnable), INDEX(name), INDEX(modified)) AS
+  SELECT parent as returnable, name, direction, from_stock, from_customer, to_customer, to_stock, modified, bapu_id, if_customer
+    FROM \`tabReturnable Movement\` M
+    JOIN \`tabBottlesNeverOnceFilled\` F
+      ON M.parent = F.returnable
+     AND M.name = F.last_move
+   WHERE 
+         direction like '%>> Cust'
+     AND to_customer in ('ALERTAR', 'Envases Rotos' )
+ORDER BY parent, modified
+;
+SELECT * 
+  FROM \`tabBottlesUnfilledNoLongerUseable\`
+LIMIT 5
+;
+
+SELECT 'Showed all damaged returnables from \`tabBottlesUnfilledNoLongerUseable\`! \n\n\n' as \`Comment\` \G;
+
+
+CREATE TEMPORARY TABLE \`tabFirstArrival\` 
+  (returnable varchar(140) NOT NULL, PRIMARY KEY(returnable), INDEX(name), INDEX(direction), INDEX(first_move)) AS
+   SELECT M.parent AS returnable, M.name, M.direction, MIN(M.modified) AS first_move
+     FROM \`tabReturnable Movement\` M
+LEFT JOIN \`tabBottlesFilledAtLeastOnce\` F
+       ON M.parent = F.returnable
+      AND M.to_stock = 'Envases IB Sucios - LSSA'
+    WHERE F.returnable IS NOT NULL
+ GROUP BY M.parent
+ ORDER BY M.parent, M.modified
+    # LIMIT 25
+;
+
+SELECT * 
+  FROM \`tabFirstArrival\`
+LIMIT 25
+;
+SELECT 'Showed first arrival of returnables to stock \`tabFirstArrival\`! \n\n\n' as \`Comment\` \G;
+
+# # SET @rtrnbl := "IBAA002";
+SET @rtrnbl := "IBAA004";
+SET @rtrnbl := "IBAA011";
+SET @rtrnbl := "IBAA013";
+SET @rtrnbl := "IBAA026";
+SET @rtrnbl := "IBAA027";
+SET @rtrnbl := "IBAA058";
+SET @rtrnbl := "IBDD433";
+SET @rtrnbl := "IBDD040";
+SET @rtrnbl := "IBCC511";
+SET @rtrnbl := "IBAA664";
+  # SELECT M.parent, M.name, M.direction, M.from_stock, M.from_customer, M.to_customer, M.to_stock, M.modified, M.bapu_id, M.if_customer
+  SELECT M.parent, MAX(M.modified) AS last_move
+    FROM \`tabReturnable Movement\` M
+    JOIN \`tabBottlesFilledAtLeastOnce\` F
+      ON M.parent = F.returnable
+     # AND M.name = F.last_move
+   WHERE 
+         modified > '2015-12-31 23:12:52.000000'
+     # AND parent = @rtrnbl
+
+     # AND direction like '%>> Cust'
+     # AND to_customer in ('ALERTAR', 'Envases Rotos' )
+
+     # AND modified > '2016-12-31 23:12:52.000000'
+     # AND direction like '%>> Stock'
+GROUP BY M.parent
+ORDER BY parent, last_move
+   LIMIT 25
+;
+
+  SELECT parent, name, idx, direction, from_stock, from_customer, to_customer, to_stock, timestamp, bapu_id, if_customer
+    FROM \`tabReturnable Movement\` M
+   WHERE 
+         modified > '2015-12-31 23:12:52.000000'
+     AND parent = @rtrnbl
+ORDER BY parent, timestamp
+   LIMIT 25
+;
+
+
+SELECT CONCAT('Showed all moves of returnable "', @rtrnbl, '"" from \`tabReturnable Movement\`! \n') as \`Comment\` \G;
+
+# SHOW CREATE TABLE \`tabReturnable Movement\`
+# ;
+# SHOW CREATE TABLE \`tabBottlesFilledAtLeastOnce\`
+# ;
+
+  SELECT name, coherente
+    FROM \`tabReturnable\` M
+   WHERE name in ('IBAA664', 'IBAA665', 'IBAA666')
+;
+
+#   UPDATE \`tabReturnable\` M
+#    SET coherente = 'Unset'
+# ;
+
+WHEOF
+
+
+
+cat << TTEOF > ${QTST_DIR}/qtst.sql
+  SELECT coherente, count(name)
+    FROM \`tabReturnable\` M
+GROUP BY coherente
+;
+
+#   UPDATE \`tabReturnable\` M
+#      SET coherente = 'Desconocido'
+# ;
+
+#   UPDATE \`tabReturnable Movement\` M
+#    SET 
+#       idx = 4
+#   WHERE name = 'RTN-MOV-000000014'
+# ;
+
+#   UPDATE \`tabReturnable Movement\` M
+#    SET 
+#       timestamp = '2016-08-23 17:08:23.000000'
+#     , creation = '2016-08-23 17:08:23.000000'
+#   WHERE name = 'RTN-MOV-000000014'
+# ;
+
+#   UPDATE \`tabReturnable\` M
+#    SET coherente = 'Unset'
+#   WHERE name = 'IBAA014'
+# ;
+
+#   UPDATE \`tabReturnable Movement\` M
+#    SET 
+#       modified = timestamp
+#     , creation = timestamp
+#   WHERE parent = 'CLAA018'
+# ;
+
+  UPDATE \`tabReturnable\` R
+   SET 
+      docstatus = 0
+;
+
+  UPDATE \`tabReturnable Movement\` M
+   SET 
+      docstatus = 0
+;
+
+#       DELETE FROM \`tabReturnable Movement\`
+#        WHERE name = 'RTN-MVX-000000012'
+# ;
+
+  SELECT *
+    FROM \`tabReturnable Movement\` M
+   WHERE parent in ('IBAA255')
+ORDER BY parent, timestamp
+;
+
+  SELECT max(name)
+    FROM \`tabReturnable Movement\` M
+ORDER BY timestamp
+;
+
+  SELECT max(timestamp)
+    FROM \`tabReturnable Movement\` M
+   WHERE parent in ('IBAA255')
+;
+
+# SHOW CREATE TABLE \`tabReturnable Movement\`
+# ;
+# SHOW CREATE TABLE \`tabReturnable\`
+# ;
+
+      # SELECT max(timestamp) as last_move
+      SELECT code,state,times_out,times_in,last_customer,R.bapu_id,fills,last_out,last_move,coherente,M.idx,direction,from_stock,from_customer,to_customer,to_stock,timestamp,if_customer
+        FROM \`tabReturnable\` R JOIN \`tabReturnable Movement\` M
+          ON R.name = M.parent
+       WHERE R.coherente = 'Descartado'
+  
+;
+TTEOF
 
 mysql -t ${1} < ${QTST_DIR}/qtst.sql;
 fi;
@@ -972,5 +1297,6 @@ fi;
 # 
 
 
-echo -e "\n/* ~~~~~~~~~ Curtailed ~~~~~~~ ${SCRIPT_NAME} ~~~~~~~~ */";
+echo -e "/* ~~~~~~~~~ Curtailed ~~~~~~~ ${SCRIPT_NAME} ~~~~~~~~ */";
 exit;
+

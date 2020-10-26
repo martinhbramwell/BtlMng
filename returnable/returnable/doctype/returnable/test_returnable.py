@@ -7,4 +7,4 @@ from __future__ import unicode_literals
 import unittest
 
 class TestReturnable(unittest.TestCase):
-	pass
+	print('>>>>>>>>>>>>>>>>>>>>>>>>>> Test <<<<<<<<<<<<<<<<<<<<<<<<<<<<<')

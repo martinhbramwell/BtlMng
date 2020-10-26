@@ -5,6 +5,9 @@
 from __future__ import unicode_literals
 import inspect
 import frappe
+import json
+import os
+import pprint
 from frappe import _, msgprint, throw
 from frappe.model.document import Document
 
@@ -25,6 +28,25 @@ stateLookup = {
   'Envases IB Rotos - LSSA': INDETERMINATE,
   'Envases IB Sucios - LSSA': DIRTY
 }
+
+def LG(txt):
+  filename = '/dev/shm/erpnext_log/results.log'
+
+  if os.path.exists(filename):
+      append_write = 'a' # append if already exists
+  else:
+      append_write = 'w' # make a new file if not
+
+  logfile = open(filename,append_write)
+  logfile.write(txt + "\n")
+  logfile.close()
+
+class DatetimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
 
 # lst = [['a', ''], ['b', ''], ['c', ''], ['d', '']]
 # csvString
@@ -281,7 +303,7 @@ def validater(self):
     print('');
     print('');
     print('');
-    print(' -----------------' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
 
     # exceptionMessages.append('DUMMY')
 
@@ -348,27 +370,162 @@ def validater(self):
         exceptionMessages.append('Errores:')
         frappe.throw(_(exceptionMessage))
 
+    print(' -----------------  Validated  ---------------------- ')
+    print('');
+    print('');
+
 
 class ReturnableBatch(Document):
   
   # def validate(self):
-  #   print(' -----------------' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
+  #   print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
 
   def autoname(self):
-
-    print(' -----------------' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ')
 
   def before_insert(self):
-    print(' -----------------' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ')
     validater(self)
+
+  def after_insert(self):
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ')
+    last_batch = frappe.get_last_doc("Returnable Batch")
+    print(last_batch.name)
+
+  def on_cancel(self):
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ')
+    return False
 
   def on_update(self):
-    print(' -----------------' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ')
+
+    returnables = frappe.db.sql("""
+          SELECT name
+            FROM `tabReturnable` M
+           WHERE name in ('IBAA664', 'IBAA665', 'IBAA666')
+    """, as_dict=True)
+    for rtrnbl in returnables:
+      returnable = rtrnbl.name
+
+      Ret = frappe.get_doc('Returnable', returnable)
+      movements = frappe.db.sql("""
+          SELECT parent, name, idx, direction, from_stock, from_customer, to_customer, to_stock, timestamp, bapu_id, if_customer
+            FROM `tabReturnable Movement` M
+           WHERE 
+                 modified > '2015-12-31 23:12:52.000000'
+             AND parent = '{0}'
+        ORDER BY parent, timestamp
+           LIMIT 25
+      """.format(returnable)
+      , as_dict=True)
+
+
+      step = 0 
+      w = 25
+      Ret.coherente = 'Si'
+      previous_mv_to = ''
+      for mv in movements:
+        mv_f = mv.from_customer if 'Cust >>' in mv.direction else mv.from_stock
+        mv_t = mv.to_customer if '>> Cust' in mv.direction else mv.to_stock
+        mv_from = mv_f or ''
+        mv_to = mv_t or ''
+        spcr =' '
+        if step > 0:
+          if previous_mv_to != mv_from:
+            Ret.coherente = 'No'
+            spcr ='*'
+
+        LG("{0} : {1} {2} {3} {4}".format(
+          mv.parent,
+          mv.direction.ljust(14, ' '),
+          ''.ljust(step, spcr),
+          mv_from[:w].ljust(w, ' '),
+          mv_to[:w].ljust(w, ' '),
+        ))
+
+        previous_mv_to = mv_to
+        step += w + 1
+
+      LG('Ret.coherente = ' + Ret.coherente)
+      Ret.save()
+
+    # print(data[0])
+
+    # #     """, filters=filters, as_dict=0)
+
+    # LG("fasdfasdfasdf")
+    # # LG(data[0])
+    # LG(json.dumps(data[0],
+    #                  sort_keys=True, indent=4, cls=DatetimeEncoder))
+
+
+  def on_update_BACKUP(self):
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ')
     validater(self)
-      # print('Saving not updating')
+
+    # theCustomer = frappe.get_doc("Customer", "Abner Victor Manuel Galarza Sosa")
+    theCustomer = frappe.get_doc("Customer", "Danilo Zumba")
+    print(theCustomer.name)
+
+
+    theCustomer.append("returnables", { "returnable": "IBCC423" })
+
+# # assign values to child table row
+# row.field_1 = "Test"
+# row.field_2 = "Test"
+# doc.save()
+
+
+    # acct = frappe.new_doc("Party Account")
+    # acct.company = "Logichem Solutions S. A."
+    # acct.account = "1.1.3.01.001 - Cuentas Por Cobrar Clientes - LSSA"
+
+    # print(acct)
+
+    # theCustomer.accounts.append(acct)
+    theCustomer.save()
+
+    # returnables = theCustomer.append("returnables", [{
+    #   "returnable": "IBCC423"
+    # }])
+    # print(theCustomer.returnables)
+    # print(theCustomer.returnables[0])
+    # print(theCustomer.returnables[0].returnable)
+
+
+    # theCustomer.returnables.append(CST_item)
+
+    # print(json.dumps({'a':2, 'b':{'x':3, 'y':{'t1': 4, 't2':5}}},
+    #                  sort_keys=True, indent=4))
+    # print(json.dumps(theCustomer,
+    #                  sort_keys=True, indent=4))
+
+    # customer = frappe.get_doc("Returnable Batch")
+    last_batch = frappe.get_last_doc("Returnable Batch")
+    print("")
+    print("")
+    print("last_batch.name")
+    print(last_batch.name)
+
+    # doc = frappe.new_doc('Returnable Holder')
+    # doc.parent = "Abner Victor Manuel Galarza Sosa"
+    # doc.returnable = "IBCC423"
+    # doc.batch = last_batch.name
+    doc.insert()
+
+#       name: RTN-CST-000000001
+#  docstatus: 1
+#     parent: Abner Victor Manuel Galarza Sosa
+#        idx: 1
+# returnable: IBCC423
+# batch_item: NULL
+
+
+    print("  INSERTED ")
+
 
   def on_submit(self):
-    print(' -----------------' + inspect.currentframe().f_code.co_name + '  ---------------------- ');
+    print(' -----------------  ' + inspect.currentframe().f_code.co_name + '  ---------------------- ')
     print(self);
 
     # print(inspect.stack()[0][3]);    
