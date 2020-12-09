@@ -74,14 +74,14 @@
   },
   {
    "allow_on_submit": 1,
-   "fieldname": "out",
+   "fieldname": "times_out",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Salidas"
   },
   {
    "allow_on_submit": 1,
-   "fieldname": "in",
+   "fieldname": "times_in",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Regresos"
