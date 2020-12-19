@@ -1290,13 +1290,528 @@ ORDER BY timestamp
 ;
 TTEOF
 
-mysql -t ${1} < ${QTST_DIR}/qtst.sql;
-fi;
+
+
+
+cat << UNPAID > ${QTST_DIR}/qtst.sql
+
+#     SELECT 
+#            I.name AS Factura
+#          , I.customer_name AS Cliente
+#          , I.tax_id AS RUC
+#          , I.posting_date AS Fecha
+#          , TRUNCATE(IFNULL(I.net_total, 0.00), 2) AS Subtotal
+#          , TRUNCATE(IFNULL(I.total_taxes_and_charges, 0.00), 2) AS IVA
+#          , TRUNCATE(IFNULL(I.grand_total, 0.00), 2) AS Total
+#          , I.status AS Estado
+#          , TRUNCATE(IFNULL(R.total_amount, 0.00), 2) AS Pagado
+#          , TRUNCATE(IFNULL(P.party_balance, 0.00), 2) AS Saldo
+#          , REPLACE(P.remarks,'\n', ' ')
+#       FROM \`tabSales Invoice\` I
+#  LEFT JOIN \`tabPayment Entry Reference\` R
+#         ON I.name = R.reference_name
+#  LEFT JOIN \`tabPayment Entry\` P
+#         ON R.parent = P.name
+#      # WHERE I.name < '001-001-000006228'
+#      WHERE I.status != 'Paid'
+#      ORDER BY I.customer
+#      # LIMIT 20
+# ;
+
+    SELECT 
+           I.customer_name AS Cliente
+         , SUM(IFNULL(I.net_total, 0.00)) AS Total
+         , SUM(IFNULL(I.total_taxes_and_charges, 0.00)) AS IVA
+         , SUM(IFNULL(I.grand_total, 0.00)) AS Total
+      FROM \`tabSales Invoice\` I
+ LEFT JOIN \`tabPayment Entry Reference\` R
+        ON I.name = R.reference_name
+ LEFT JOIN \`tabPayment Entry\` P
+        ON R.parent = P.name
+     WHERE I.status != 'Paid'
+       AND IFNULL(I.grand_total, 0.00) > 0.99
+       AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+  GROUP BY Cliente
+  ORDER BY Total DESC
+INTO OUTFILE '/dev/shm/LSSA/totalsByClientName.csv'
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+;
+
+    SELECT 
+           I.name AS Factura
+         , I.customer_name AS Cliente
+         , I.tax_id AS RUC
+         , I.posting_date AS Fecha
+         , TRUNCATE(IFNULL(I.net_total, 0.00), 2) AS Subtotal
+         , TRUNCATE(IFNULL(I.total_taxes_and_charges, 0.00), 2) AS IVA
+         , TRUNCATE(IFNULL(I.grand_total, 0.00), 2) AS Total
+         , TRUNCATE(IFNULL(R.total_amount, 0.00), 2) AS Pagado
+         , TRUNCATE(IFNULL(P.party_balance, 0.00), 2) AS Saldo
+         , I.status AS Estado
+         , REPLACE(IFNULL(P.remarks, ''),'\n', ' ') AS Notas
+      FROM \`tabSales Invoice\` I
+ LEFT JOIN \`tabPayment Entry Reference\` R
+        ON I.name = R.reference_name
+ LEFT JOIN \`tabPayment Entry\` P
+        ON R.parent = P.name
+     WHERE I.status != 'Paid'
+       AND IFNULL(I.grand_total, 0.00) > 0.99
+       AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+  ORDER BY Cliente
+INTO OUTFILE '/dev/shm/LSSA/invoicesByClientName.csv'
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+;
+
+    SELECT 
+           I.name AS Factura
+         , I.customer_name AS Cliente
+         , I.tax_id AS RUC
+         , I.posting_date AS Fecha
+         , TRUNCATE(IFNULL(I.net_total, 0.00), 2) AS Subtotal
+         , TRUNCATE(IFNULL(I.total_taxes_and_charges, 0.00), 2) AS IVA
+         , TRUNCATE(IFNULL(I.grand_total, 0.00), 2) AS Total
+         , TRUNCATE(IFNULL(R.total_amount, 0.00), 2) AS Pagado
+         , TRUNCATE(IFNULL(P.party_balance, 0.00), 2) AS Saldo
+         , I.status AS Estado
+         , REPLACE(IFNULL(P.remarks, ''),'\n', ' ') AS Notas
+      FROM \`tabSales Invoice\` I
+ LEFT JOIN \`tabPayment Entry Reference\` R
+        ON I.name = R.reference_name
+ LEFT JOIN \`tabPayment Entry\` P
+        ON R.parent = P.name
+     WHERE I.status != 'Paid'
+       AND IFNULL(I.grand_total, 0.00) > 0.99
+       AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+  ORDER BY I.grand_total DESC
+INTO OUTFILE '/dev/shm/LSSA/worstInvoiceFirst.csv'
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+;
+
+
+    SELECT 
+           I.name AS Factura
+         , I.customer_name AS Cliente
+         , I.tax_id AS RUC
+         , I.posting_date AS Fecha
+         , TRUNCATE(IFNULL(I.net_total, 0.00), 2) AS Subtotal
+         , TRUNCATE(IFNULL(I.total_taxes_and_charges, 0.00), 2) AS IVA
+         , TRUNCATE(IFNULL(I.grand_total, 0.00), 2) AS Total
+         , TRUNCATE(IFNULL(R.total_amount, 0.00), 2) AS Pagado
+         , TRUNCATE(IFNULL(P.party_balance, 0.00), 2) AS Saldo
+         , I.status AS Estado
+         , REPLACE(IFNULL(P.remarks, ''),'\n', ' ') AS Notas
+      FROM \`tabSales Invoice\` I
+ LEFT JOIN \`tabPayment Entry Reference\` R
+        ON I.name = R.reference_name
+ LEFT JOIN \`tabPayment Entry\` P
+        ON R.parent = P.name
+     # WHERE I.name < '001-001-000006228'
+     WHERE I.status != 'Paid'
+       AND IFNULL(I.grand_total, 0.00) > 0.99
+       AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+  ORDER BY I.name DESC
+INTO OUTFILE '/dev/shm/LSSA/chronological.csv'
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+;
+
+# SELECT * FROM \`tabPayment Entry Reference\`
+# LIMIT 2\G
+
+# SELECT * FROM \`tabPayment Entry\`
+# LIMIT 2\G
+UNPAID
+
+
+
+# 
+
+cat << ABEOF > ${QTST_DIR}/qtst.sql
+
+  SELECT LEFT(R.name, 4) AS code, COUNT(*) FROM \`tabReturnable\` R GROUP BY LEFT(R.name, 4); -- LIMIT 4;
+ABEOF
+
+cat << AAEOF > ${QTST_DIR}/qtst.sql
+  # SELECT name, idx, bapu_id, direction, timestamp, from_stock, from_customer, to_customer, to_stock, returnables
+  #   FROM \`tabReturnable Batch\` B
+  #  WHERE B.bapu_id IN ('E_0002830', 'E_0001332')
+  #  LIMIT 2;
+
+
+  # SELECT * FROM \`tabReturnable Batch\` B WHERE B.returnables = 114 LIMIT 5\G
+  # SELECT B.bapu_id, MAX(B.returnables) FROM \`tabReturnable Batch\` B WHERE B.bapu_id NOT IN ('IB2020/00843'); 
+
+  # SELECT B.name, M.parent, M.idx, B.direction, B.bapu_id
+  #   FROM \`tabReturnable Movement\` M
+  #      , \`tabReturnable Batch\` B 
+  #  WHERE M.bapu_id = 'ib2020/00877'
+  #    AND M.bapu_id = B.bapu_id
+  #    AND M.timestamp = B.timestamp
+  #  ORDER BY M.idx
+  #  ;
+
+  # SELECT count(*)
+  #   FROM \`tabReturnable Movement\` M
+  #      , \`tabReturnable Batch\` B 
+  #  WHERE M.bapu_id = 'ib2020/00877'
+  #    AND M.bapu_id = B.bapu_id
+  #    AND M.timestamp = B.timestamp
+  #  ORDER BY M.idx
+  #  ;
+
+  # SELECT * FROM \`tabReturnable Batch\` B WHERE B.bapu_id = 'ib2020/00877'\G 
+  # SELECT * FROM \`tabReturnable Movement\` M WHERE M.bapu_id = 'ib2020/00877' LIMIT 1\G
+
+  # SELECT B.name, B.bapu_id, B.returnables FROM \`tabReturnable Batch\` B WHERE B.returnables > 20 AND B.returnables < 30; 
+
+  SELECT R.name, M.idx, B.returnables as Cnt, B.name, M.direction, M.bapu_id, CONCAT(M.bapu_id, '-1'), M.from_stock, M.from_customer, M.to_customer, M.to_stock
+    FROM \`tabReturnable\` R
+       , \`tabReturnable Movement\` M
+       , \`tabReturnable Batch\` B
+   WHERE M.parent = R.name
+     AND B.bapu_id IN (M.bapu_id, CONCAT(M.bapu_id, '-1')) 
+     # AND M.direction = B.direction
+     # AND M.from_stock <=> B.from_stock
+     # AND M.from_customer <=> B.from_customer
+     # AND M.to_customer <=> B.to_customer
+     # AND M.to_stock <=> B.to_stock
+     # AND M.timestamp = B.timestamp
+     AND R.coherente = 'Si'
+     AND R.name = 'IBDD571'
+ORDER BY R.name, M.idx
+   LIMIT 10
+;
+
+    SELECT '#', R.name, M.idx, B.returnables, B.flag, M.direction, M.bapu_id, B.bapu_id, M.from_stock, M.from_customer, M.to_customer, M.to_stock
+      FROM \`tabReturnable\` R
+INNER JOIN \`tabReturnable Movement\` M
+            ON M.parent = R.name
+ LEFT JOIN \`tabReturnable Batch\` B
+            ON B.bapu_id = M.bapu_id
+     WHERE R.coherente = 'Si'
+     # AND B.bapu_id IN (M.bapu_id, CONCAT(M.bapu_id, '-1')) 
+     # AND ( OR B.bapu_id = CONCAT(M.bapu_id, '-1')) 
+     # AND B.bapu_id = CONCAT(M.bapu_id, '-1')
+       AND M.idx = 1
+       AND R.name like 'IBEE%'
+  ORDER BY R.name, M.idx
+     LIMIT 200
+;
+
+#   SELECT count(*)
+#     FROM \`tabReturnable\` R
+#        , \`tabReturnable Movement\` M
+#        , \`tabReturnable Batch\` B
+#    WHERE M.parent = R.name
+#      AND M.bapu_id = B.bapu_id
+#      AND M.direction = B.direction
+#      AND M.from_stock <=> B.from_stock
+#      AND M.from_customer <=> B.from_customer
+#      AND M.to_customer <=> B.to_customer
+#      AND M.to_stock <=> B.to_stock
+#      AND M.timestamp = B.timestamp
+#      AND R.coherente = 'Si'
+#      AND R.name = 'IBDD571'
+# ORDER BY R.name, M.idx
+#    # LIMIT 5
+# ;
+
+  # SELECT B.name, B.bapu_id, B.returnables
+  # FROM \`tabReturnable Batch\` B
+  # WHERE B.bapu_id like 'E_%'
+  # ORDER BY B.bapu_id DESC
+  # LIMIT 10
+  # ;
+
+  # SELECT M.name, M.idx, M.parent, M.direction, M.timestamp, M.bapu_id, M.from_stock, M.from_customer, M.to_customer, M.to_stock
+  # FROM \`tabReturnable Movement\` M 
+  # WHERE M.bapu_id like 'E_%-1'
+  # ORDER BY M.bapu_id DESC
+  # # LIMIT 5
+  # # ORDER BY M.idx
+  # ;
+
+  # # WHERE M.parent = 'IBDD571'  AND M.idx = 4
+
+AAEOF
+
+
+# 
+
+cat << ADEOF > ${QTST_DIR}/qtst.sql
+
+    SELECT
+            R.name
+          , M.name as movement
+          , M.idx
+          , M.timestamp
+          , M.transferred as moved
+          , M.direction
+          , M.from_stock
+          , M.from_customer
+          , M.to_customer
+          , M.to_stock
+          , M.bapu_id
+          , B.flag as flagged
+          , B.name as batch
+          , B.returnables
+      FROM \`tabReturnable\` R
+INNER JOIN \`tabReturnable Movement\` M
+            ON M.parent = R.name
+ LEFT JOIN \`tabReturnable Batch\` B
+            ON B.bapu_id = M.bapu_id
+     WHERE R.coherente = 'Si'
+       AND M.idx = 5
+       AND M.direction NOT IN ('dummy')
+       # AND R.name like 'CLAA%'
+       # AND R.name like 'CLCC%'
+       AND R.name like 'IBAA%'
+       # AND R.name like 'IBCC%'
+       # AND R.name like 'IBDD%'
+       # AND R.name like 'IBEE%'
+  ORDER BY R.name, M.idx
+       LIMIT 0, 7;
+
+    SELECT
+            M.name as movement
+          , M.transferred as moved
+          , M.bapu_id
+          , B.bapu_id
+          , B.flag as flagged
+          , B.name as batch
+          , B.returnables
+      FROM \`tabReturnable Movement\` M
+ LEFT JOIN \`tabReturnable Batch\` B
+            ON B.bapu_id = M.bapu_id
+     WHERE B.name = "RTN-BCH-000012128"
+  # ORDER BY R.name, M.idx
+       # LIMIT 0, 7
+;
+
+SELECT * FROM \`tabReturnable Batch Item\` LIMIT 0, 1\G
+
+UPDATE \`tabReturnable Batch\` set docstatus = 0;
+
+SELECT * FROM \`tabReturnable Batch\` LIMIT 0, 1\G
+ADEOF
+
+
+# 
+cat << AEEOF > ${QTST_DIR}/qtst.sql
+# SELECT *
+#   FROM \`tabStock Entry Detail\`
+#  # WHERE stock_entry_type = 'Material Transfer'
+#  LIMIT 0,2
+# \G
+SELECT *
+  FROM \`tabStock Entry\` E,  \`tabStock Entry Detail\` D
+ WHERE E.name = D.parent
+   AND E.stock_entry_type = 'Material Transfer'
+   AND D.transfer_qty > 1
+ LIMIT 0,2
+\G
+
+ALTER TABLE \`tabStock Entry Detail\`
+DROP INDEX IF EXISTS serial_no;
+
+ALTER TABLE \`tabStock Entry Detail\`
+ADD FULLTEXT(serial_no)
+;
+
+SHOW INDEX FROM \`tabStock Entry Detail\`
+;
+
+UPDATE \`tabStock Entry\`
+   SET remarks = '{ "direction": "Stock >> Stock", "bapu_id": "2019/3456" }', docstatus = 0
+ WHERE name = 'MAT-STE-2020-00038'
+;
+
+SET @returnable = 'IBAA584';
+SELECT
+         @returnable as Envase
+       , JSON_EXTRACT(IFNULL(E.remarks, '{ "direction": "??", "bapu_id": "??" }'), '$.direction')  as Direccion
+       , D.parent as Movimiento
+       , D.s_warehouse as Origen
+       , D.t_warehouse as Destino
+       , D.creation as Fecha
+       , E.stock_entry_type as Tipo
+       , JSON_EXTRACT(IFNULL(E.remarks, '{ "direction": "??", "bapu_id": "??" }'), '$.bapu_id')  as BAPU
+       , REPLACE(D.serial_no, '\n', ' ')
+  FROM \`tabStock Entry\` E, \`tabStock Entry Detail\` D
+ WHERE D.parent = E.name
+   AND D.item_code = 'Envase de 5GL Iridium Blue'
+   AND MATCH(serial_no) AGAINST(@returnable)
+   ORDER BY D.creation desc
+;
+
+select count(*) from \`tabStock Entry\` limit 0,1\G
+
+AEEOF
+
 
 
 # 
 
 
+
+# 
+
+cat << AZEOF > ${QTST_DIR}/qtst.sql
+
+#     SELECT 
+#            I.customer_name AS Cliente
+#          , SUM(IFNULL(I.net_total, 0.00)) AS Total
+#          , SUM(IFNULL(I.total_taxes_and_charges, 0.00)) AS IVA
+#          , SUM(IFNULL(I.grand_total, 0.00)) AS Total
+#       FROM \`tabSales Invoice\` I
+#  LEFT JOIN \`tabPayment Entry Reference\` R
+#         ON I.name = R.reference_name
+#  LEFT JOIN \`tabPayment Entry\` P
+#         ON R.parent = P.name
+#      WHERE I.status != 'Paid'
+#        AND IFNULL(I.grand_total, 0.00) > 0.99
+#        AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+#   GROUP BY Cliente
+#   ORDER BY Total DESC
+# INTO OUTFILE '/dev/shm/LSSA/totalsByClientName.csv'
+# FIELDS TERMINATED BY ','
+# ENCLOSED BY '"'
+# LINES TERMINATED BY '\n'
+# ;
+
+#     SELECT 
+#            I.name AS Factura
+#          , I.customer_name AS Cliente
+#          , I.tax_id AS RUC
+#          , I.posting_date AS Fecha
+#          , TRUNCATE(IFNULL(I.net_total, 0.00), 2) AS Subtotal
+#          , TRUNCATE(IFNULL(I.total_taxes_and_charges, 0.00), 2) AS IVA
+#          , TRUNCATE(IFNULL(I.grand_total, 0.00), 2) AS Total
+#          , TRUNCATE(IFNULL(R.total_amount, 0.00), 2) AS Pagado
+#          , TRUNCATE(IFNULL(P.party_balance, 0.00), 2) AS Saldo
+#          , I.status AS Estado
+#          , REPLACE(IFNULL(P.remarks, ''),'\n', ' ') AS Notas
+#       FROM \`tabSales Invoice\` I
+#  LEFT JOIN \`tabPayment Entry Reference\` R
+#         ON I.name = R.reference_name
+#  LEFT JOIN \`tabPayment Entry\` P
+#         ON R.parent = P.name
+#      WHERE I.status != 'Paid'
+#        AND IFNULL(I.grand_total, 0.00) > 0.99
+#        AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+#   ORDER BY Cliente
+# # INTO OUTFILE '/dev/shm/LSSA/invoicesByClientName.csv'
+# # FIELDS TERMINATED BY ','
+# # ENCLOSED BY '"'
+# # LINES TERMINATED BY '\n'
+# ;
+
+#     SELECT 
+#            I.name AS Factura
+#          , I.customer_name AS Cliente
+#          , I.tax_id AS RUC
+#          , I.posting_date AS Fecha
+#          , TRUNCATE(IFNULL(I.net_total, 0.00), 2) AS Subtotal
+#          , TRUNCATE(IFNULL(I.total_taxes_and_charges, 0.00), 2) AS IVA
+#          , TRUNCATE(IFNULL(I.grand_total, 0.00), 2) AS Total
+#          , TRUNCATE(IFNULL(R.total_amount, 0.00), 2) AS Pagado
+#          , TRUNCATE(IFNULL(P.party_balance, 0.00), 2) AS Saldo
+#          , I.status AS Estado
+#          , REPLACE(IFNULL(P.remarks, ''),'\n', ' ') AS Notas
+#       FROM \`tabSales Invoice\` I
+#  LEFT JOIN \`tabPayment Entry Reference\` R
+#         ON I.name = R.reference_name
+#  LEFT JOIN \`tabPayment Entry\` P
+#         ON R.parent = P.name
+#      WHERE I.status != 'Paid'
+#        AND IFNULL(I.grand_total, 0.00) > 0.99
+#        AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+#   ORDER BY I.grand_total DESC
+# # INTO OUTFILE '/dev/shm/LSSA/worstInvoiceFirst.csv'
+# # FIELDS TERMINATED BY ','
+# # ENCLOSED BY '"'
+# # LINES TERMINATED BY '\n'
+# ;
+
+
+    SELECT 
+           I.name AS Factura
+         , IFNULL(I.po_no, I.name) AS BAPU_ID 
+         , I.customer_name AS Cliente
+         , I.tax_id AS RUC
+         , I.posting_date AS Fecha
+         , TRUNCATE(IFNULL(I.net_total, 0.00), 2) AS Subtotal
+         , TRUNCATE(IFNULL(I.total_taxes_and_charges, 0.00), 2) AS IVA
+         , TRUNCATE(IFNULL(I.grand_total, 0.00), 2) AS Total
+         , TRUNCATE(IFNULL(R.total_amount, 0.00), 2) AS Pagado
+         , TRUNCATE(IFNULL(P.party_balance, 0.00), 2) AS Saldo
+         , I.status AS Estado
+         , REPLACE(IFNULL(P.remarks, ''),'\n', ' ') AS Notas
+      FROM \`tabSales Invoice\` I
+ LEFT JOIN \`tabPayment Entry Reference\` R
+        ON I.name = R.reference_name
+ LEFT JOIN \`tabPayment Entry\` P
+        ON R.parent = P.name
+     # WHERE IFNULL(I.grand_total, 0.00) > 0.99
+     #   AND IFNULL(I.grand_total, 0.00) > IFNULL(R.total_amount, 0.00)
+  ORDER BY I.name
+INTO OUTFILE '/dev/shm/LSSA/allInvoices.csv'
+FIELDS TERMINATED BY ','
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+;
+
+    # SELECT name, po_no, customer_name
+    #   FROM \`tabSales Invoice\` I
+    #  WHERE name = '001-002-000004086'
+    # LIMIT 0,1
+    # \G
+
+    # SELECT name, po_no, customer_name
+    #   FROM \`tabSales Invoice\` I
+    #  WHERE name = '001-002-000004086'
+    # LIMIT 0,1
+    # \G
+AZEOF
+
+cat << AYEOF > ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql
+  SELECT S.name, S.customer_name, I.item_code, FORMAT(I.qty, 0 ), FORMAT(I.net_rate, 2 )
+    FROM \`tabSales Invoice\` S, \`tabSales Invoice Item\` I
+   WHERE I.parent = S.name
+     AND I.item_code like 'Envase%Iridium Blue%'
+ORDER BY S.name
+INTO OUTFILE '/dev/shm/LSSA/InvoicesSelling5GlIBjugs.csv'
+FIELDS TERMINATED BY ','
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+;
+
+#   SELECT S.customer_name AS Cliente, I.item_code AS Item, I.net_rate AS Precio, SUM(I.qty) AS qty
+#     FROM \`tabSales Invoice\` S, \`tabSales Invoice Item\` I
+#    WHERE I.parent = S.name
+#      AND I.item_code like 'Envase%Iridium Blue%'
+# GROUP BY S.customer_name, I.item_code, I.net_rate
+# ORDER BY S.customer_name, I.item_code, I.net_rate
+# ;
+# #    LIMIT 0, 1
+# # \G    
+AYEOF
+
+
+# mysql -t ${1} < ${QTST_DIR}/qtst.sql;
+mysql -t ${1} < ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql;
+
+fi;
+
+
 echo -e "/* ~~~~~~~~~ Curtailed ~~~~~~~ ${SCRIPT_NAME} ~~~~~~~~ */";
 exit;
+
 

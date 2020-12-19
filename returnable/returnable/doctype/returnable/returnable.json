@@ -18,6 +18,7 @@
   "moves",
   "last_out",
   "last_move",
+  "coherente",
   "amended_from"
  ],
  "fields": [
@@ -120,6 +121,12 @@
    "fieldtype": "Int",
    "hidden": 1,
    "label": "last move"
+  },
+  {
+   "default": "Desconocido",
+   "fieldname": "coherente",
+   "fieldtype": "Data",
+   "label": "Coherente"
   }
  ],
  "is_submittable": 1,

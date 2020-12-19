@@ -12,7 +12,9 @@
   "to_customer",
   "to_stock",
   "timestamp",
-  "bapu_id"
+  "bapu_id",
+  "if_customer",
+  "transferred"
  ],
  "fields": [
   {
@@ -81,6 +83,12 @@
    "label": "If Customer",
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "transferred",
+   "fieldtype": "Check",
+   "label": "Transferred"
   }
  ],
  "istable": 1,
