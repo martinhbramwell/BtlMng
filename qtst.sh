@@ -1804,9 +1804,35 @@ LINES TERMINATED BY '\n'
 # # \G    
 AYEOF
 
+cat << ADEOF > ${QTST_DIR}/AcquisitionDates.sql
+    DROP TABLE IF EXISTS \`firstUses\`;
+    CREATE TEMPORARY TABLE \`firstUses\` AS SELECT EXTRACT(YEAR_MONTH FROM min(M.timestamp)) as YearMonth, R.name as Returnable FROM \`tabReturnable\` R, \`tabReturnable Movement\` M WHERE M.parent = R.name GROUP BY R.name ORDER BY YearMonth;
+
+    DROP TABLE IF EXISTS acquisitionMonths;
+    CREATE TEMPORARY TABLE acquisitionMonths AS SELECT YearMonth, count(*) as Cnt from \`firstUses\` GROUP BY YearMonth;
+
+    DROP TABLE IF EXISTS ranges;
+    CREATE TEMPORARY TABLE ranges AS  SELECT YearMonth, Cnt,
+        CASE WHEN YearMonth = '201601' THEN '201601' WHEN YearMonth < '201612' THEN '201602' WHEN YearMonth < '201704' THEN '201612' WHEN YearMonth < '201805' THEN '201704' WHEN YearMonth < '201808' THEN '201805' WHEN YearMonth < '202012' THEN '201808' ELSE YearMonth END AS Acquired
+        FROM acquisitionMonths;
+
+    DROP TABLE IF EXISTS acquisitions;
+    CREATE TABLE acquisitions AS  SELECT R.Acquired, R.YearMonth, F.Returnable FROM \`firstUses\` F, ranges AS R  WHERE R.YearMonth = F.YearMonth;
+
+    SELECT * FROM \`firstUses\` F LIMIT 15;
+    SELECT * FROM ranges R;
+    SELECT * FROM acquisitions A LIMIT 25;
+
+    # select EXTRACT(YEAR_MONTH FROM min(M.timestamp)) as YearMonth, R.name as Returnable FROM \`tabReturnable\` R, \`tabReturnable Movement\` M where M.parent = R.name group by R.name order by YearMonth;
+    # select * FROM \`tabReturnable\` R, \`tabReturnable Movement\` M where M.parent = R.name LIMIT 10;
+    # select R.name, EXTRACT(YEAR_MONTH FROM min(M.timestamp)) FROM \`tabReturnable\` R, \`tabReturnable Movement\` M where M.parent = R.name LIMIT 10;
+ADEOF
+
+
 
 # mysql -t ${1} < ${QTST_DIR}/qtst.sql;
-mysql -t ${1} < ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql;
+# mysql -t ${1} < ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql;
+mysql -t ${1} < ${QTST_DIR}/AcquisitionDates.sql;
 
 fi;
 

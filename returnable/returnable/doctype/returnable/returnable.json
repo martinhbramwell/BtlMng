@@ -35,6 +35,16 @@
    "unique": 1
   },
   {
+   "allow_in_quick_entry": 1,
+   "fieldname": "acquisition",
+   "fieldtype": "Date",
+   "in_global_search": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Fecha de Adquisición",
+   "in_list_view": 1,
+  },
+  {
    "bold": 1,
    "fieldname": "state",
    "fieldtype": "Select",
@@ -70,7 +80,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_preview": 1,
-   "label": "Ultimo Cliente",
+   "label": "Último Cliente",
    "options": "Customer"
   },
   {
