@@ -8,7 +8,7 @@ export QTST_DIR="/dev/shm/qtst";
 mkdir -p ${QTST_DIR};
 
 if [[ 0 == 1 ]]; then
-cat << EOF > ${QTST_DIR}/qtst.py
+    cat << EOF > ${QTST_DIR}/qtst.py
 
 row = ['Cust >> Stock', None, 'Envases Sucios - LSSA', 'IBAA324', 'RTN-BCH-00047059', 'RTN-BIT-000067195']
 
@@ -17,21 +17,20 @@ print('Use to_stock' if row[0].split(' >> ')[0] == 'Stock' else 'Use to_customer
 
 EOF
 
-# ython3 ${QTST_DIR}/qtst.py;
-python3 ${QTST_DIR}/qtst.py > chart.json;
+    python3 ${QTST_DIR}/qtst.py > chart.json;
 
-cat chart.json;
-# sed -i "s/'/\"/g" chart.json;
+    cat chart.json;
+    # sed -i "s/'/\"/g" chart.json;
 
-# cat chart.json;
+    # cat chart.json;
 
-# jq -r '.' chart.json;
+    # jq -r '.' chart.json;
 
 
 else
 
 
-cat << EOF > ${QTST_DIR}/qtst.sql
+    cat << EOF > ${QTST_DIR}/qtst.sql
 
     # SELECT 'Loading temporary table \`RTN_HLD\` from \`tabReturnable\`, \`tabReturnable Batch\` and \`tabReturnable Batch Item\`' \G
 
@@ -401,10 +400,10 @@ EOF
 # EOF
 # SELECT * FROM \`tabReturnable\` LIMIT 4;
 
-echo -e "
-";
+    echo -e "
+    ";
 
-cat << EOF > ${QTST_DIR}/qtst.sql
+    cat << EOF > ${QTST_DIR}/qtst.sql
 #     SELECT
 #           I.bottle as Retornable
 #         , DATE_FORMAT(B.timestamp, '%Y-%m-%d') as Desde
@@ -796,7 +795,7 @@ EOF
     #   )
     # ORDER BY R.name
     # ;
-cat << QTEOF > ${QTST_DIR}/qtst.sql
+    cat << QTEOF > ${QTST_DIR}/qtst.sql
 
     # SELECT 'Loading \`tabRetBat\` from \`/opt/ErpNext_DocTypeHandlers/docType_Returnable_Batch.csv\`' \G
 
@@ -898,10 +897,10 @@ cat << QTEOF > ${QTST_DIR}/qtst.sql
 
 QTEOF
 
-cat << SREOF > ${QTST_DIR}/qtst.sql
+    cat << SREOF > ${QTST_DIR}/qtst.sql
 
 
-SET @CUSTOMER := "Avix%";
+    SET @CUSTOMER := "Avix%";
 
     SELECT SQL_CALC_FOUND_ROWS
           C.Retornable      AS \`Retornable\`
@@ -1071,7 +1070,7 @@ SELECT 'Showed \`tabReturnable Holder\` \n\n\n' as \`Comment\` \G;
 SREOF
 
 
-cat << WHEOF > ${QTST_DIR}/qtst.sql
+    cat << WHEOF > ${QTST_DIR}/qtst.sql
 
 CREATE TEMPORARY TABLE \`tabBottlesFilledAtLeastOnce\` 
   (returnable varchar(140) NOT NULL, PRIMARY KEY(returnable), INDEX(name), INDEX(direction), INDEX(first_move)) AS
@@ -1211,7 +1210,8 @@ WHEOF
 
 
 
-cat << TTEOF > ${QTST_DIR}/qtst.sql
+    cat << TTEOF > ${QTST_DIR}/qtst.sql
+
   SELECT coherente, count(name)
     FROM \`tabReturnable\` M
 GROUP BY coherente
@@ -1293,7 +1293,7 @@ TTEOF
 
 
 
-cat << UNPAID > ${QTST_DIR}/qtst.sql
+    cat << UNPAID > ${QTST_DIR}/qtst.sql
 
 #     SELECT 
 #            I.name AS Factura
@@ -1433,12 +1433,12 @@ UNPAID
 
 # 
 
-cat << ABEOF > ${QTST_DIR}/qtst.sql
+    cat << ABEOF > ${QTST_DIR}/qtst.sql
 
   SELECT LEFT(R.name, 4) AS code, COUNT(*) FROM \`tabReturnable\` R GROUP BY LEFT(R.name, 4); -- LIMIT 4;
 ABEOF
 
-cat << AAEOF > ${QTST_DIR}/qtst.sql
+    cat << AAEOF > ${QTST_DIR}/qtst.sql
   # SELECT name, idx, bapu_id, direction, timestamp, from_stock, from_customer, to_customer, to_stock, returnables
   #   FROM \`tabReturnable Batch\` B
   #  WHERE B.bapu_id IN ('E_0002830', 'E_0001332')
@@ -1545,7 +1545,7 @@ AAEOF
 
 # 
 
-cat << ADEOF > ${QTST_DIR}/qtst.sql
+    cat << ADEOF > ${QTST_DIR}/qtst.sql
 
     SELECT
             R.name
@@ -1604,7 +1604,7 @@ ADEOF
 
 
 # 
-cat << AEEOF > ${QTST_DIR}/qtst.sql
+    cat << AEEOF > ${QTST_DIR}/qtst.sql
 # SELECT *
 #   FROM \`tabStock Entry Detail\`
 #  # WHERE stock_entry_type = 'Material Transfer'
@@ -1663,7 +1663,7 @@ AEEOF
 
 # 
 
-cat << AZEOF > ${QTST_DIR}/qtst.sql
+    cat << AZEOF > ${QTST_DIR}/qtst.sql
 
 #     SELECT 
 #            I.customer_name AS Cliente
@@ -1781,7 +1781,7 @@ LINES TERMINATED BY '\n'
     # \G
 AZEOF
 
-cat << AYEOF > ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql
+    cat << AYEOF > ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql
   SELECT S.name, S.customer_name, I.item_code, FORMAT(I.qty, 0 ), FORMAT(I.net_rate, 2 )
     FROM \`tabSales Invoice\` S, \`tabSales Invoice Item\` I
    WHERE I.parent = S.name
@@ -1806,38 +1806,82 @@ AYEOF
 
 cat << ADEOF > ${QTST_DIR}/AcquisitionDates.sql
     DROP TABLE IF EXISTS \`firstUses\`;
-    CREATE TEMPORARY TABLE \`firstUses\` AS SELECT EXTRACT(YEAR_MONTH FROM min(M.timestamp)) as YearMonth, R.name as Returnable FROM \`tabReturnable\` R, \`tabReturnable Movement\` M WHERE M.parent = R.name GROUP BY R.name ORDER BY YearMonth;
+    CREATE TEMPORARY TABLE \`firstUses\` AS 
+        SELECT 
+               EXTRACT(YEAR_MONTH FROM min(M.timestamp)) as YearMonth
+             , M.timestamp AS FirstUse
+             , R.name as Returnable
+          FROM \`tabReturnable\` R, \`tabReturnable Movement\` M
+         WHERE M.parent = R.name
+      GROUP BY R.name
+      ORDER BY Returnable;
 
     DROP TABLE IF EXISTS acquisitionMonths;
     CREATE TEMPORARY TABLE acquisitionMonths AS SELECT YearMonth, count(*) as Cnt from \`firstUses\` GROUP BY YearMonth;
 
     DROP TABLE IF EXISTS ranges;
     CREATE TEMPORARY TABLE ranges AS  SELECT YearMonth, Cnt,
-        CASE WHEN YearMonth = '201601' THEN '201601' WHEN YearMonth < '201612' THEN '201602' WHEN YearMonth < '201704' THEN '201612' WHEN YearMonth < '201805' THEN '201704' WHEN YearMonth < '201808' THEN '201805' WHEN YearMonth < '202012' THEN '201808' ELSE YearMonth END AS Acquired
+        CASE WHEN YearMonth < '201602' THEN '201512'
+             WHEN YearMonth < '201612' THEN '201602'
+             WHEN YearMonth < '201704' THEN '201612'
+             WHEN YearMonth < '201805' THEN '201704'
+             WHEN YearMonth < '201808' THEN '201805'
+             WHEN YearMonth < '202012' THEN '201808'
+          ELSE YearMonth
+        END AS Acquired
         FROM acquisitionMonths;
 
     DROP TABLE IF EXISTS acquisitions;
-    CREATE TABLE acquisitions AS  SELECT R.Acquired, R.YearMonth, F.Returnable FROM \`firstUses\` F, ranges AS R  WHERE R.YearMonth = F.YearMonth;
+    CREATE TABLE acquisitions AS
+          SELECT 
+              R.Acquired
+            , R.YearMonth
+            , F.Returnable
+            , F.FirstUse
+            , CONCAT(SUBSTRING(R.Acquired, 1, 4), '-', SUBSTRING(R.Acquired, 5, 2), '-01') as DateAcquired
+            FROM
+               \`firstUses\` F
+            , ranges AS R
+           WHERE R.YearMonth = F.YearMonth
+        ORDER BY F.Returnable;
 
-    SELECT * FROM \`firstUses\` F LIMIT 15;
-    SELECT * FROM ranges R;
-    SELECT * FROM acquisitions A LIMIT 25;
+    # SELECT * FROM \`firstUses\` F LIMIT 15;
+    # SELECT * FROM ranges R;
+    # SELECT * FROM acquisitions A LIMIT 25;
 
-    # select EXTRACT(YEAR_MONTH FROM min(M.timestamp)) as YearMonth, R.name as Returnable FROM \`tabReturnable\` R, \`tabReturnable Movement\` M where M.parent = R.name group by R.name order by YearMonth;
-    # select * FROM \`tabReturnable\` R, \`tabReturnable Movement\` M where M.parent = R.name LIMIT 10;
-    # select R.name, EXTRACT(YEAR_MONTH FROM min(M.timestamp)) FROM \`tabReturnable\` R, \`tabReturnable Movement\` M where M.parent = R.name LIMIT 10;
+    # SELECT R.name, R.acquisition, A.Acquired, CONCAT(SUBSTRING(A.Acquired, 1, 4), '-', SUBSTRING(A.Acquired, 5, 2), '-01') FROM \`tabReturnable\` R, acquisitions A WHERE R.name = A.Returnable limit 10;
+
+    UPDATE \`tabReturnable\` R
+    SET
+      R.acquisition = (SELECT CONCAT(SUBSTRING(A.Acquired, 1, 4), '-', SUBSTRING(A.Acquired, 5, 2), '-01') FROM acquisitions A WHERE R.name = A.Returnable);
 ADEOF
 
 
 
-# mysql -t ${1} < ${QTST_DIR}/qtst.sql;
-# mysql -t ${1} < ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql;
-mysql -t ${1} < ${QTST_DIR}/AcquisitionDates.sql;
+    cat << QQEOF > ${QTST_DIR}/GetAcquisitionDates.sql
+  # SELECT * FROM acquisitions A WHERE Returnable like 'IBCC23%';
+  # SELECT A.DateAcquired, count(Returnable) FROM acquisitions A GROUP BY Acquired;
+  SELECT acquisition, count(name) FROM \`tabReturnable\` R GROUP BY acquisition;
+
+
+  -- LIMIT 25;
+QQEOF
+
+if [[ -f envars.sh ]]; then
+    source  envars.sh;
+    # mysql -t ${1} < ${QTST_DIR}/qtst.sql;
+    # mysql -t ${1} < ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql;
+    mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/AcquisitionDates.sql;
+    mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/GetAcquisitionDates.sql;
+else 
+    echo -e "Found NO symbolic link 'envars.sh' to an environment variables file.";
+fi;
+
 
 fi;
 
 
-echo -e "/* ~~~~~~~~~ Curtailed ~~~~~~~ ${SCRIPT_NAME} ~~~~~~~~ */";
+echo -e "/*  ~~~~~~~~~ Curtailed ~~~~~~~ ${SCRIPT_NAME} ~~~~~~~~  */";
 exit;
 
 

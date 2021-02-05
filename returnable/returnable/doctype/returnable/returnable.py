@@ -27,8 +27,10 @@ class DatetimeEncoder(json.JSONEncoder):
     except TypeError:
       return str(obj)
 
+dateformat = "%Y-%m-%d"
 
-def LG(txt):
+
+def LG(txt, end = "\n"):
   filename = '/dev/shm/erpnext/result.log'
 
   if os.path.exists(filename):
@@ -42,7 +44,7 @@ def LG(txt):
     append_write = 'w' # make a new file if not
 
   logfile = open(filename,append_write)
-  logfile.write(txt + "\n")
+  logfile.write(txt + end)
   logfile.close()
 
 def getQryReturnableMovements(returnable, offset = 0, rows = 0):
@@ -72,6 +74,12 @@ def getQryReturnableAge(returnable):
         FROM `tabReturnable Movement` M
        WHERE parent = '{0}'
   """.format(returnable)
+
+def getQryAcquisitions():
+  return """
+    SELECT acquisition, name FROM `tabReturnable` R
+  ;
+  """.format()
 
 
 def getQryDropReturnableMovement(returnable, move):
@@ -439,19 +447,20 @@ onlyStockStock = "'Cust >> Stock', 'Cust >> Cust', 'Stock >> Cust'"
 onlyCustStock = "'Stock >> Stock', 'Cust >> Cust', 'Stock >> Cust'"
 onlyStockCust = "'Cust >> Stock', 'Stock >> Stock', 'Cust >> Cust'"
 onlyCustCust = "'Cust >> Stock', 'Stock >> Stock', 'Stock >> Cust'"
+
 def alignAllInitialMoves():
 
   LG("""Realigning all initial moves""")
 
   movements = frappe.db.sql(getQryIndexedReturnableMovements(1, 0, 999999, onlyCustStock), as_dict=True)
-  LG("""\nInserting a fake delivery step for each bottle that seems to
+  LG("""\nInserting a fake DELIVERY step for each bottle that seems to
               begin life with return from a customer.
         'Stock >> Cust' to each of {0} returnables.""".format(len(movements)))
   insertInitialRealignmentSteps(movements, 'Customer Receipt')
 
   movements = frappe.db.sql(getQryIndexedReturnableMovements(1, 0, 999999, onlyStockCust), as_dict=True)
-  LG("""\nInserting a fake delivery step for each bottle that seems to
-              begin life with return from a customer.
+  LG("""\nInserting a fake REFILL step for each bottle that seems to
+              begin life with delivery to a customer.
         'Stock >> Stock' to each of {0} returnables.""".format(len(movements)))
   insertInitialRealignmentSteps(movements, 'Filling')
 
@@ -494,15 +503,6 @@ def cleanReturnables():
       Ret.coherente = 'Descartado'
       Ret.save()
       frappe.db.commit()
-
-
-def installReturnables(company):
-  # LG("Getting values for company: {}".format(company))
-  prepareGlobals(company)
-
-  cleanReturnables()
-  alignAllInitialMoves()
-
 
 def createStockLocation(location):
   warehouse = None
@@ -592,37 +592,37 @@ def getWarehouses(batch):
 
 def getQryIndexedReturnableMovements(index, offset = 0, rows = 0, direction = "'Cust >> Cust'"):
   return """
-    SELECT 
-           R.name
-         , M.name as movement
-         , M.idx
-         , M.timestamp
-         , M.transferred
-         , M.direction
-         , M.from_stock
-         , M.from_customer
-         , M.to_customer
-         , M.to_stock
-         , M.bapu_id
-         , B.flag as flagged
-         , B.name as batch
-         , B.returnables
-      FROM `tabReturnable` R
-INNER JOIN `tabReturnable Movement` M
-            ON M.parent = R.name
- LEFT JOIN `tabReturnable Batch` B
-            ON B.bapu_id = M.bapu_id
-     WHERE R.coherente = 'Si'
-       AND M.idx = {0}
-       AND M.direction NOT IN ({3})
-       -- AND R.name like 'CLAA%'
-       -- AND R.name like 'CLCC%'
-       -- AND R.name like 'IBAA%'
-       -- AND R.name like 'IBCC%'
-       -- AND R.name like 'IBDD%'
-       -- AND R.name like 'IBEE%'
-  ORDER BY R.name, M.idx
-       LIMIT {1}, {2};
+      SELECT 
+             R.name
+           , M.name as movement
+           , M.idx
+           , M.timestamp
+           , M.transferred
+           , M.direction
+           , M.from_stock
+           , M.from_customer
+           , M.to_customer
+           , M.to_stock
+           , M.bapu_id
+          -- , B.flag as flagged
+           , B.name as batch
+           , B.returnables
+        FROM `tabReturnable` R
+  INNER JOIN `tabReturnable Movement` M
+              ON M.parent = R.name
+   LEFT JOIN `tabReturnable Batch` B
+              ON B.bapu_id = M.bapu_id
+       WHERE R.coherente = 'Si'
+         AND M.idx = {0}
+         AND M.direction NOT IN ({3})
+         -- AND R.name like 'CLAA%'
+         -- AND R.name like 'CLCC%'
+         -- AND R.name like 'IBAA%'
+         -- AND R.name like 'IBCC%'
+         -- AND R.name like 'IBDD%'
+         -- AND R.name like 'IBEE%'
+    ORDER BY R.name, M.idx
+         LIMIT {1}, {2};
   """.format(index, offset, rows, direction)
        # LIMIT 500
 # | CLAA |       21 |
@@ -799,13 +799,93 @@ def prepareGlobals(company):
 
 
 
+
+
+def getInitialAcquisitionSerialNumbers():
+  serialNumbersPerAcquisitions = frappe._dict()
+
+  LG("Getting initial acquisition serial numbers.")
+  acquisitions = frappe.db.sql(getQryAcquisitions(), as_dict=False)
+  cnt = 0
+  for acquisition in acquisitions:
+    if acquisition[0] is not None:
+      acquisitionDate = acquisition[0].strftime(dateformat)
+      acquisitionId = acquisition[1]
+      if acquisitionDate in serialNumbersPerAcquisitions:
+        serialNumbersPerAcquisitions[acquisitionDate].append(acquisitionId)
+      else:
+        serialNumbersPerAcquisitions[acquisitionDate] = [acquisitionId]
+    cnt += 1
+
+  LG("Got {} initial acquisition serial numbers.".format(cnt))
+  return serialNumbersPerAcquisitions
+
+def makeInitialAcquisitions():
+  LG("Creating Material Receipts for Serial Numbered containers.")
+
+  serialNumbersPerAcquisitions = getInitialAcquisitionSerialNumbers()
+
+  cnt = 0
+  for date in serialNumbersPerAcquisitions:
+    se = {
+      "doctype": "Stock Entry",
+      "docstatus": 0,
+      "to_warehouse": "Envases IB Sucios - LSSA",
+      "posting_date": date,
+      "posting_time": "09:00:00.000000",
+      "set_posting_time": 1,
+      "stock_entry_type": "Material Receipt",
+      "items": [
+        {
+          "qty": len(serialNumbersPerAcquisitions[date]),
+          "item_code": "Envase de 5GL Iridium Blue",
+          "serial_no": ",".join(serialNumbersPerAcquisitions[date])
+        }
+      ]
+    }
+
+    stockEntry = frappe.get_doc(se)
+    LG("{} :: {}".format(stockEntry.posting_date, stockEntry.items[0].qty), end = ' ... ')
+    try:
+      LG("Saving", end = ' ... ')
+      stockEntry.save()
+      SE = frappe.get_last_doc('Stock Entry')
+      LG("Submitting {} ".format(SE.name), end = ' ... ')
+      # SE.run_method('submit')
+      SE.submit()
+      LG("Done")
+    except:
+      LG("FAILED")
+
+    cnt += 1
+
+  LG("All Done")
+
+  frappe.db.commit()
+  LG("Created {} Material Receipts for Serial Numbered containers.".format(cnt))
+  
+
+
+@frappe.whitelist()
+def installReturnables(company):
+  # LG("Getting values for company: {}".format(company))
+  prepareGlobals(company)
+
+  cleanReturnables()
+  alignAllInitialMoves()
+
+  makeInitialAcquisitions()
+
+  return "Installed Returnables";
+
+
 @frappe.whitelist()
 def install_returnables(company):
 
 
   # return { "result": { "name": NAME_COMPANY, "abbr": ABBR_COMPANY, "warehouses": { "Empties": SUCIOS, "Filled": LLENOS } } }
 
-  test = 99
+  test = 4
   if test == 1:
     LG("Installing returnables ... ")
     # installReturnables()
@@ -839,6 +919,10 @@ def install_returnables(company):
           LG("bapu_id : {}".format(inv['data']['seqib']))
 
     return { "result": "Enqueued Quick Test." }
+  elif test == 4:
+    LG("Enqueuing Quick Test #4")
+    # makeInitialAcquisitions()
+    return { "result": "Enqueued Quick Test #4." }
   else:
     prepareGlobals(company)
     LG("Find warehouse ...")

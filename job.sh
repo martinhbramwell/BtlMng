@@ -1,6 +1,30 @@
-sleep 1;
-curl -sLX POST 'https://dev.erpnext.host/api/method/returnable.returnable.doctype.returnable.returnable.install_returnables' \
--H 'Authorization: token db9bd25ee3f56ad:7c8ccc1f0c2f88e' \
--H 'Content-Type: application/x-www-form-urlencoded' \
---data-urlencode 'company=Logichem Solutions S. A.' \
-  | jq -r '.message.result';
+#!/usr/bin/env bash
+#
+
+sleep 2;
+
+
+if [[ -f envars.sh ]]; then
+
+	source  envars.sh;
+	declare PRCTL="https";
+	declare ENDPOINT="${PRCTL}://${TARGET_HOST}/api/method/returnable.returnable.doctype.returnable.returnable";
+
+	echo -e "Calling ${ENDPOINT}";
+
+	declare TGT="/dev/shm/install_returnables.html";
+	declare AUTHZ="Authorization: token ${KEYS}";
+
+	declare EP_NAME="installReturnables";
+	# declare EP_NAME="install_returnables";
+
+	curl -s -L -X POST "${ENDPOINT}.${EP_NAME}" \
+	-H "${AUTHZ}" \
+	-H 'Content-Type: application/x-www-form-urlencoded' \
+	--data-urlencode 'company=Logichem Solutions S. A.' > ${TGT}
+	jq -r '.message' ${TGT};
+else 
+	echo -e "Found NO symbolic link 'envars.sh' to an environment variables file.";
+fi;
+exit;
+
