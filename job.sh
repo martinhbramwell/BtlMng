@@ -15,8 +15,8 @@ if [[ -f envars.sh ]]; then
 	declare TGT="/dev/shm/install_returnables.html";
 	declare AUTHZ="Authorization: token ${KEYS}";
 
-	declare EP_NAME="installReturnables";
-	# declare EP_NAME="install_returnables";
+	# declare EP_NAME="installReturnables";
+	declare EP_NAME="tester";
 
 	curl -s -L -X POST "${ENDPOINT}.${EP_NAME}" \
 	-H "${AUTHZ}" \

@@ -474,6 +474,8 @@ def cleanReturnables():
   LG('Getting unprocessed returnables')
   returnables = frappe.db.sql(getQryReturnablesIds(), as_dict=True)
   pmv = frappe._dict({ "name": None, "frm": None, "to": None })
+  active = 0;
+  condemned = 0;
   for returnable in returnables:
     nameReturnable = returnable.name
     LG('Returnable :: {0} '.format(nameReturnable))
@@ -497,12 +499,17 @@ def cleanReturnables():
       else:
         LG(' *** Failed after {0} *** Returnable :: {1} Coherent? {2}\n\n'.format(limit, nameReturnable, coherent))
         break
+      active += 1
     else:
       LG("""  Returnable '{0}' is too old to be worth correcting! ***\n\n""".format(nameReturnable))
       Ret = frappe.get_doc('Returnable', nameReturnable)
       Ret.coherente = 'Descartado'
       Ret.save()
       frappe.db.commit()
+      condemned += 1;
+
+
+  LG('Processed {} active and {} inactivereturnables'.format(active, condemned))
 
 def createStockLocation(location):
   warehouse = None
@@ -879,8 +886,12 @@ def installReturnables(company):
   return "Installed Returnables";
 
 
+
+
+# ############################################################################# #
+
 @frappe.whitelist()
-def install_returnables(company):
+def tester(company):
 
 
   # return { "result": { "name": NAME_COMPANY, "abbr": ABBR_COMPANY, "warehouses": { "Empties": SUCIOS, "Filled": LLENOS } } }
