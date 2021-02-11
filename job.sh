@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 
-sleep 2;
+sleep 1;
 
 
 if [[ -f envars.sh ]]; then
@@ -10,7 +10,6 @@ if [[ -f envars.sh ]]; then
 	declare PRCTL="https";
 	declare ENDPOINT="${PRCTL}://${TARGET_HOST}/api/method/returnable.returnable.doctype.returnable.returnable";
 
-	echo -e "Calling ${ENDPOINT}";
 
 	declare TGT="/dev/shm/install_returnables.html";
 	declare AUTHZ="Authorization: token ${KEYS}";
@@ -18,6 +17,9 @@ if [[ -f envars.sh ]]; then
 	# declare EP_NAME="installReturnables";
 	declare EP_NAME="tester";
 
+	> ${TGT}
+
+	echo -e "Calling ${ENDPOINT}.${EP_NAME}";
 	curl -s -L -X POST "${ENDPOINT}.${EP_NAME}" \
 	-H "${AUTHZ}" \
 	-H 'Content-Type: application/x-www-form-urlencoded' \

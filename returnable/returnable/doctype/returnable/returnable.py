@@ -11,6 +11,10 @@ import gc
 import errno
 import time
 import datetime
+import math  
+
+import pandas as pd
+
 
 from operator import attrgetter
 from threading import Thread
@@ -47,6 +51,7 @@ def LG(txt, end = "\n"):
   logfile.write(txt + end)
   logfile.close()
 
+
 def getQryReturnableMovements(returnable, offset = 0, rows = 0):
   return """
       SELECT parent, name, idx, direction, from_stock, from_customer, to_customer, to_stock, timestamp, bapu_id, if_customer
@@ -58,6 +63,7 @@ def getQryReturnableMovements(returnable, offset = 0, rows = 0):
   """.format(returnable, offset, rows)
        # LIMIT 500
 
+
 def getQryReturnablesIds():
   return """
       SELECT name, coherente
@@ -68,12 +74,14 @@ def getQryReturnablesIds():
   """
        # LIMIT 3000
 
+
 def getQryReturnableAge(returnable):
   return """
       SELECT max(timestamp) as last_move
         FROM `tabReturnable Movement` M
        WHERE parent = '{0}'
   """.format(returnable)
+
 
 def getQryAcquisitions():
   return """
@@ -90,6 +98,7 @@ def getQryDropReturnableMovement(returnable, move):
          AND parentfield = 'moves'
          AND parenttype = 'Returnable'
   """.format(returnable, move)
+
 
 def reindexMovements(returnable):
   LG('REINDEX')
@@ -114,6 +123,7 @@ def removeSpuriousMovement(returnable, moveName):
   LG('returnable.remove(theMove = {0})'.format(theMove.name))
   returnable.remove(theMove)
   reindexMovements(returnable)
+
 
 def reDateMovement(returnable, moveName):
   # pass
@@ -146,6 +156,7 @@ def reDateMovement(returnable, moveName):
 
  # ************ Move : RTN-MOV-000006997. Next move RTN-MOV-000006998 ==> 2016-01-05 12:01:20
  # ************ 2016-01-05 12:01:20
+
 
 def prepareNewMovement(oldMove, newMove, fixType):
   typeOfFix = frappe._dict({
@@ -187,7 +198,6 @@ def prepareNewMovement(oldMove, newMove, fixType):
     'timestamp': None,
     'creation': None
   })
-
 
 
 def insertNewMovement(returnable, oldMove, newMove, fixType):
@@ -267,8 +277,10 @@ def insertNewMovement(returnable, oldMove, newMove, fixType):
 
   LG('Last Move :: {0} {1} {2}'.format(idx, returnable.moves[length - 1].idx, returnable.moves[length - 1].name))
 
+
 def sorter(elem):
   return "%02d %s" % (elem['age'], elem['name'])
+
 
 def installReturnablesTester():
 
@@ -511,34 +523,6 @@ def cleanReturnables():
 
   LG('Processed {} active and {} inactivereturnables'.format(active, condemned))
 
-def createStockLocation(location):
-  warehouse = None
-  if location not in EXISTING_LOCATIONS:
-    try:
-      LG("""\n\n\n *************** Seeking stock location: {}""".format(location))
-      warehouse = frappe.get_doc("Warehouse", location)
-      LG(warehouse.name)
-    except Exception as errFind:
-      try:
-        LG("""\n\n\n *************** Creating stock location: {}""".format(location))
-        warehouse = frappe.get_doc({
-            "doctype": "Warehouse",
-            "parent_warehouse": "Envases IB Custodia del Cliente - {}".format(ABBR_COMPANY),
-            "is_group": 0,
-            "company": NAME_COMPANY,
-            "account": "2.1.8.01 - Inventario Entrante No Facturado - {}".format(ABBR_COMPANY),
-            "warehouse_type": "Consignado",
-            "warehouse_name": location
-          },
-        )
-        warehouse.insert()
-      except Exception as errCreate:
-        LG("""  Caught error: {}""".format(errCreate))
-
-    EXISTING_LOCATIONS.add(location)
-
-  # LG("""Have stock Location: {}""".format(location))
-
 
 def custStock(movement):
   rtrn = {
@@ -548,6 +532,7 @@ def custStock(movement):
   # LG("""Regreso movement is from {0} to {1}.""".format(rtrn["frm"], rtrn["to"]))
   return rtrn
 
+
 def custCust(movement):
   rtrn = {
    "frm": "{} - {}".format(movement.from_customer, ABBR_COMPANY),
@@ -556,6 +541,7 @@ def custCust(movement):
   # LG("""Customer trade is from {0} to {1}.""".format(rtrn["frm"], rtrn["to"]))
   return rtrn
 
+
 def stockStock(movement):
   rtrn = {
     "frm": movement.from_stock,
@@ -563,6 +549,7 @@ def stockStock(movement):
   }
   # LG("""Relleno movement is from {0} to {1}.""".format(rtrn["frm"], rtrn["to"]))
   return rtrn
+
 
 def stockCust(movement):
   rtrn = {
@@ -591,10 +578,9 @@ def getWarehouses(batch):
     "F": directions[batch.direction](batch)["frm"],
     "T": directions[batch.direction](batch)["to"],
   })
-  createStockLocation(ret.F)
-  createStockLocation(ret.T)
+  getWarehouse(ret.F)
+  getWarehouse(ret.T)
   return ret
-
 
 
 def getQryIndexedReturnableMovements(index, offset = 0, rows = 0, direction = "'Cust >> Cust'"):
@@ -745,43 +731,95 @@ def processStep(movements):
         ))
 
 
+
+
+
+movementEnds = frappe._dict({
+  'Cust >> Stock': { 'F': 'Donde Cliente', 'T': 'Sucios' },
+  'Stock >> Stock': { 'F': 'Sucios', 'T': 'Llenos' },
+  'Stock >> Cust': { 'F': 'Llenos', 'T': 'Donde Cliente' }
+})
+
+
 def quickTest(company):
   prepareGlobals(company)
   LG("""~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nQuick Test: >{}<""".format(ABBR_COMPANY))
 
-  if 1 == 1:
-    index = 0
-    moves = 1
-    while moves > 0:
-      index += 1
-      qry = getQryIndexedReturnableMovements(index, 0, 999999, "'dummy'")
-      # LG("""The query is :\n{}""".format(qry))
-      movements = frappe.db.sql(qry, as_dict=True)
-      moves = len(movements)
-      LG("""\n\n___________________________________________
-         Processing {0} movements for step #{1}""".format(moves, index))
-
-      if moves > 0: 
-        rslt = processStep(movements)
-        if rslt is not None:
-          return rslt
-
-      if index > 4:
-        moves = -1
+  LG("""Returnables:
+     """)
+  returnables = frappe._dict({})
+  result = frappe.db.sql("SELECT code, 'Sucios' as state FROM `tabReturnable`")
+  for row in result:
+    returnables[row[0]] = row[1]
 
 
+  
+  moves = frappe.db.sql("SELECT COUNT(*) as moves FROM `tabReturnable Movement`", as_dict=True)
+  # moves = frappe.db.sql("SELECT COUNT(*) as moves FROM Movements", as_dict=True)
+  loopGroup = round(math.sqrt(moves[0].moves))
+  # LG("loopGroup :: {}".format(loopGroup))
 
+  select = """SELECT parent as returnable, direction as move, timestamp as time, name as id
+                FROM `tabReturnable Movement`
+            ORDER BY timestamp
+               LIMIT"""
+  # select = """SELECT parent, direction FROM Movements LIMIT"""
+  groupCount = 0
+  fullCount = 0
+  trap = 333
+  mismatch = False
+  while True:
+    sql = "{} {}, {}".format(select, groupCount, loopGroup)
+    # LG(sql)
 
-  # try:
-  #   batch = frappe.get_list("Stock Entry", "RTN-BCH-000049735")
-  # except Exception as err:
-  #   LG("""  Caught error: {}""".format(err))
-  # for returnable in batch.items_moved:
-  #   LG(""" Batch item: {}""".format(returnable.bottle))
+    moves = frappe.db.sql(sql, as_dict=True)
+    limit = len(moves)
+    for MV in moves:
+      # returnable = mvmnt[0]
+      # move = mvmnt[1]
+      # time = mvmnt[2]
+      lastMoveAt = returnables[MV.returnable]
+      thisMoveFrom = movementEnds[MV.move]['F']
+      thisMoveTo = movementEnds[MV.move]['T']
+      matched = "OK" if lastMoveAt == thisMoveFrom else " * * Mismatch * * "
+      # LG(" {} |  '{}'  vs  '{}'   ==> {}".format(returnable, lastMoveAt, thisMoveFrom, matched))
+      LG("{0:06d} ({1} :: {2}) {3} |  '{4}'  vs  '{5}'   ==> {6}".format(fullCount, MV.id, MV.time, MV.returnable, lastMoveAt, thisMoveFrom, matched))
 
+      if lastMoveAt != thisMoveFrom:
+        LG("***  Movement mismatch  ***")
+        mismatch = True
+        break
 
+      returnables[MV.returnable] = thisMoveTo
+      fullCount += 1
+
+    if mismatch:
+      break
+
+    if limit != loopGroup:
+      LG("***  Reached end of data  ***")
+      break
+    groupCount += loopGroup
+
+    if trap < 1:
+      LG("***  TRAP SPRUNG  ***")
+      break
+    trap -= 1
+
+  rslt = loopGroup
+
+  # for returnable in returnables:
+  #   LG("{} : '{}'".format(returnable, returnables[returnable]))
+
+  
   LG("""~~~~~~~~~~~~~~~~~~~  Done  ~~~~~~~~~~~~~~~~~~""")
-  return "Tested";
+  return "Tested : {}".format(rslt);
+
+
+
+
+
+
 
 
 def prepareGlobals(company):
@@ -805,9 +843,6 @@ def prepareGlobals(company):
   EXISTING_LOCATIONS = set({ SUCIOS, LLENOS, ROTOS })
 
 
-
-
-
 def getInitialAcquisitionSerialNumbers():
   serialNumbersPerAcquisitions = frappe._dict()
 
@@ -826,6 +861,7 @@ def getInitialAcquisitionSerialNumbers():
 
   LG("Got {} initial acquisition serial numbers.".format(cnt))
   return serialNumbersPerAcquisitions
+
 
 def makeInitialAcquisitions():
   LG("Creating Material Receipts for Serial Numbered containers.")
@@ -872,6 +908,176 @@ def makeInitialAcquisitions():
   LG("Created {} Material Receipts for Serial Numbered containers.".format(cnt))
   
 
+def getQryBatchesOfDay(ctx):
+  # LG("""{0} < x < {1}""".format(ctx.begin, ctx.end))
+  return """
+       SELECT
+            R.name
+          , R.bapu_id
+          , R.timestamp
+          , R.direction
+          , R.from_stock
+          , R.from_customer
+          , R.to_customer
+          , R.to_stock
+          , R.returnables
+         FROM `tabReturnable Batch` R 
+        WHERE timestamp BETWEEN "{0}" AND "{1}"
+     ORDER BY timestamp
+  """.format(ctx.begin, ctx.end)
+
+
+def getQryBatchItem(ctx):
+  # LG("""{0} < x < {1}""".format(ctx.begin, ctx.end))
+  return """
+    SELECT bottle
+      FROM `tabReturnable Batch Item` R
+     WHERE parent = "{}"
+     ;
+  """.format(ctx.batch)
+
+
+def createStockLocation(ctx):
+  location = ctx.name
+  warehouse_name = ctx.warehouse_name
+  warehouse = None
+  if location not in EXISTING_LOCATIONS:
+    try:
+      # LG("""*** Seeking : {}""".format(location), end = ' ... ')
+      warehouse = frappe.get_doc("Warehouse", location)
+      # LG("Found :: {}".format(warehouse.name))
+    except Exception as errFind:
+      try:
+        # LG("""Creating : {}""".format(location), end = ' ... ')
+        warehouse = frappe.get_doc({
+            "name": location,
+            "doctype": "Warehouse",
+            "parent_warehouse": "Envases IB Custodia del Cliente - {}".format(ABBR_COMPANY),
+            "is_group": 0,
+            "company": NAME_COMPANY,
+            "account": "2.1.8.01 - Inventario Entrante No Facturado - {}".format(ABBR_COMPANY),
+            "warehouse_type": "Consignado",
+            "warehouse_name": warehouse_name
+          },
+        )
+        warehouse.insert()
+        warehouse.submit()
+        WH = frappe.get_last_doc('Warehouse')
+
+        # LG("Created warehouse :: {}".format(WH.name))
+      except Exception as errCreate:
+        LG("""  Caught error: {}""".format(errCreate))
+
+    EXISTING_LOCATIONS.add(location)
+  # else:
+  #   LG("""*** Existing : {}""".format(location))
+
+  # LG("""Have stock Location: {}""".format(location))
+  return location
+
+
+def getWarehouse(warehouse_name):
+  context = frappe._dict({
+    "warehouse_name": warehouse_name,
+    "name": "{} - {}".format(warehouse_name, ABBR_COMPANY)
+  })
+  # LG("Get warehouse for :: {}".format(context))
+  return createStockLocation(context)
+
+
+def createStockEntry(se):
+  LG("        Stock Entry.\n          {}""".format(se));
+  stockEntry = frappe.get_doc(se)
+  stockEntry.insert()
+  stockEntry.submit()
+  SE = frappe.get_last_doc('Stock Entry')
+  return SE
+
+
+def CustomerToStockBatch(ctx):
+  LG("""      Customer Return Batch.\n        {}\n        {}""".format(ctx.batch, ctx.batchItems));
+
+
+def CustomerToCustomerBatch(ctx):
+  LG("      Customer To Customer Exchange.\n        {}\n        {}""".format(ctx.batch, ctx.batchItems));
+
+
+def StockToCustomerBatch(ctx):
+  LG("      Customer Delivery Batch #{} to {} [{}]""".format(ctx.batch.bapu_id, ctx.batch.to_customer, ctx.batchItems));
+
+  date = ctx.batch.timestamp.strftime('%Y-%m-%d')
+  time = ctx.batch.timestamp.strftime('%H:%M:%S.000000')
+
+  customerConsignment = getWarehouse(ctx.batch.to_customer)
+  # LG("          Customer Consignment :: {}""".format(customerConsignment));
+
+  se = {
+    "doctype": "Stock Entry",
+    "docstatus": 1,
+    "stock_entry_type": "Material Transfer",
+    "posting_date": date,
+    "posting_time": time,
+    "set_posting_time": 1,
+    "items": [
+      {
+        "qty": len(ctx.batchItems),
+        "item_code": "Envase de 5GL Iridium Blue",
+        "s_warehouse": LLENOS,
+        "t_warehouse": customerConsignment,
+        "serial_no": ','.join(ctx.batchItems)
+      }
+    ]
+  }
+
+  SE = createStockEntry(se)
+  LG("          Created Stock Entry :: {}""".format(SE.name));
+
+
+def StockToStockBatch(ctx):
+  LG("      Stock To Stock Batch Transfer.\n        {}\n        {}""".format(ctx.batch, ctx.batchItems));
+  
+
+batchTransfer = {
+  "Cust >> Stock": CustomerToStockBatch,
+  "Cust >> Cust": CustomerToCustomerBatch,
+  "Stock >> Cust": StockToCustomerBatch,
+  # "Stock >> Cust": CustomerToStockBatch,
+  "Stock >> Stock": StockToStockBatch
+}
+
+
+
+def iterateReturnableBatches():
+  LG("Iterating returnable batches by date.");
+  # startDate = '2015-12-31'
+  startDate = pd.to_datetime('2015-12-30')
+  endDate = pd.to_datetime('2016-01-03')
+  # endDate = pd.to_datetime("now") + pd.to_timedelta(1, unit='d')
+  possibleDates = pd.date_range(start=startDate, end=endDate, freq='D')
+  for idx, val in enumerate(possibleDates):
+    if idx > 0:
+      context = frappe._dict({
+        "begin": possibleDates[idx-1],
+        "end": val - pd.to_timedelta(1, unit='s')
+      })
+      # LG(getQryBatchesOfDay(context))
+      LG("\n {} ---------------------------------------".format(val))
+      batches = frappe.db.sql(getQryBatchesOfDay(context), as_dict=True)
+      if len(batches) > 0:
+        # LG("   {}".format(batches))
+        # LG("   ---------")
+        for batch in batches:
+          # LG("    {} :: {}".format(batch.name, batch.direction))
+          items = frappe.db.sql(getQryBatchItem(frappe._dict({ "batch": batch.name })), as_dict=False)
+          spec = frappe._dict({
+            "batch": batch,
+            "batchItems": list(item[0] for item in items)
+          })
+          # LG("                       Items :: {}".format(spec.batchItems))
+          batchTransfer[batch.direction](spec)
+
+
+
 
 @frappe.whitelist()
 def installReturnables(company):
@@ -896,30 +1102,20 @@ def tester(company):
 
   # return { "result": { "name": NAME_COMPANY, "abbr": ABBR_COMPANY, "warehouses": { "Empties": SUCIOS, "Filled": LLENOS } } }
 
-  test = 4
+  prepareGlobals(company)
+  test = 2
   if test == 1:
-    LG("Installing returnables ... ")
-    # installReturnables()
-    frappe.enqueue('returnable.returnable.doctype.returnable.returnable.installReturnables', company=company, is_async=True, timeout=60000)
-    # enqueue_long_job()
-
-    # make_stock_entries()
-
-    LG("Finished ... exiting\n##########################################################################################")
-    return { "result": "Done" }
+    LG("Mapping production batches ... ")
+    LG("Mapped  production batches ... exiting\n#######################################################")
+    return { "result": "Mapped  production batches" }
   elif test == 2:
+
     LG("Enqueuing Quick Test")
-    msg = None
-    # enqueue('returnable.returnable.doctype.returnable.returnable.quickTest', company=company, is_async=True, timeout=60000)
     msg = quickTest(company)
-    if msg is None:
-      msg = "Enqueued Quick Test."
-    else:
-      msg = "Quick Test failed with:\n      * * * {} * * * \n\n".format(msg);
-    # enqueue_long_job()
-    return { "result": "Enqueued Quick Test." }
+    return { "result": msg }
+
   elif test == 3:
-    LG("Enqueuing Quick Test")
+    LG("\n\n\nEnqueuing Quick Test")
     fpath = '/opt/docTypeHandlers/BAPU/invoices'
     for filename in os.listdir(fpath):
       if filename.endswith(".json"): 
@@ -932,10 +1128,17 @@ def tester(company):
     return { "result": "Enqueued Quick Test." }
   elif test == 4:
     LG("Enqueuing Quick Test #4")
-    # makeInitialAcquisitions()
+    # iterateReturnableBatches()
     return { "result": "Enqueued Quick Test #4." }
+  elif test == 5:
+    LG("Enqueuing Quick Test #5")
+    batch = frappe._dict({ "to_customer": "Brewster" })
+    ctx = frappe._dict({ "batch": batch })
+    LG("Context :: {}".format(ctx.batch.to_customer))
+    customerConsignment = getWarehouse(ctx.batch.to_customer)
+    LG("          Customer Consignment :: {}""".format(customerConsignment));
+    return { "result": ctx }
   else:
-    prepareGlobals(company)
     LG("Find warehouse ...")
     try:
       warehouse = frappe.get_doc("Warehouse", "Marco Lamar - {}".format(ABBR_COMPANY))

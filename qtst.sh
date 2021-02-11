@@ -1867,12 +1867,97 @@ ADEOF
   -- LIMIT 25;
 QQEOF
 
+
+
+
+
+
+    cat << QREOF > ${QTST_DIR}/GetBatchDates.sql
+  SELECT * FROM \`tabReturnable Batch\` R WHERE timestamp BETWEEN "2021-02-02 00:00:00" AND "2021-02-02 23:59:59" ORDER BY timestamp LIMIT 20;
+  SELECT
+            R.name
+          , R.bapu_id
+          , R.timestamp
+          , R.direction
+          , R.from_stock
+          , R.from_customer
+          , R.to_customer
+          , R.to_stock
+          , R.returnables
+    FROM \`tabReturnable Batch\` R ORDER BY R.timestamp DESC LIMIT 20;
+  SELECT bottle FROM \`tabReturnable Batch Item\` R WHERE parent = "RTN-BCH-000051189" LIMIT 20;
+QREOF
+
+    cat << QSEOF > ${QTST_DIR}/OrderAllMovementsByTimeStamp.sql
+  SELECT parent, direction, timestamp, substring(timestamp, 1, 10) as date, if(bapu_id = "", CONCAT("ERP", REPLACE(substring(timestamp, 1, 10), "-", "")), bapu_id) as bapu_id, if_customer 
+    FROM \`tabReturnable Movement\`
+   WHERE timestamp > '2019-02-04'
+ORDER BY timestamp
+   LIMIT 40;  
+
+  SELECT SQL_CALC_FOUND_ROWS
+            substring(timestamp, 1, 10) as date
+          , if(bapu_id = "", CONCAT("ERP", REPLACE(substring(timestamp, 1, 10), "-", "")), bapu_id) as bapu_id
+          , COUNT(parent) AS Bottles
+    FROM \`tabReturnable Movement\`
+   WHERE direction = "Stock >> Stock"
+GROUP BY date, bapu_id
+ORDER BY date, bapu_id
+   # LIMIT 40
+   ;
+
+SELECT FOUND_ROWS();
+
+SELECT CONCAT('Create returnable locator\n') as \`Comment\` \G;
+DROP TABLE IF EXISTS locator;
+    CREATE TEMPORARY TABLE locator ENGINE=MEMORY
+        AS SELECT code,  state
+      FROM \`tabReturnable\`
+     LIMIT 10,2
+    ;  
+
+  SELECT count(*)
+    FROM \`tabReturnable Movement\`
+    ;  
+
+  SELECT parent, direction
+    FROM \`tabReturnable Movement\`
+    LIMIT 20
+    ;  
+
+SELECT parent, direction, timestamp FROM \`tabReturnable Movement\` ORDER BY timestamp LIMIT 0, 5;
+SELECT parent, direction, timestamp FROM \`tabReturnable Movement\` ORDER BY timestamp LIMIT 5, 5;
+
+
+#  SELECT code,  state
+#       FROM \`tabReturnable\`
+#     WHERE state NOT IN ('Lleno', 'Sucio', 'Confuso', 'Donde Cliente')  
+#      LIMIT 10,2
+# ;
+
+# DROP TABLE IF EXISTS locator;
+#     CREATE TABLE Movements AS
+#         SELECT *
+#         FROM \`tabReturnable Movement\`
+#         WHERE timestamp > '2021-01-29 15:24:14.000000'
+#         ORDER BY timestamp
+#     ;
+
+delete from \`tabReturnable Movement\` where name =  '562db5485f';
+
+QSEOF
+
 if [[ -f envars.sh ]]; then
     source  envars.sh;
     # mysql -t ${1} < ${QTST_DIR}/qtst.sql;
     # mysql -t ${1} < ${QTST_DIR}/InvoicesSelling5GlIBjugs.sql;
-    mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/AcquisitionDates.sql;
-    mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/GetAcquisitionDates.sql;
+    # mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/AcquisitionDates.sql;
+    # mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/GetAcquisitionDates.sql;
+
+    # mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/GetBatchDates.sql;
+
+    mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/OrderAllMovementsByTimeStamp.sql;
+
 else 
     echo -e "Found NO symbolic link 'envars.sh' to an environment variables file.";
 fi;
