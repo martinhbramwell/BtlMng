@@ -24,7 +24,7 @@ if [[ -f envars.sh ]]; then
 	-H "${AUTHZ}" \
 	-H 'Content-Type: application/x-www-form-urlencoded' \
 	--data-urlencode 'company=Logichem Solutions S. A.' > ${TGT}
-	jq -r '.message' ${TGT};
+	jq -er '.message' ${TGT} || cat ${TGT};
 else 
 	echo -e "Found NO symbolic link 'envars.sh' to an environment variables file.";
 fi;

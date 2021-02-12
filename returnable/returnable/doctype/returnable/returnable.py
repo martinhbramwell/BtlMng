@@ -53,14 +53,16 @@ def LG(txt, end = "\n"):
 
 
 def getQryReturnableMovements(returnable, offset = 0, rows = 0):
+
+  limit = """LIMIT        {}, {}""".format(offset, rows) if rows > 0 else ""
   return """
       SELECT parent, name, idx, direction, from_stock, from_customer, to_customer, to_stock, timestamp, bapu_id, if_customer
         FROM `tabReturnable Movement` M
        WHERE parent LIKE '{0}'
          AND parent NOT LIKE ''
     ORDER BY parent, creation
-       LIMIT {1}, {2};
-  """.format(returnable, offset, rows)
+       {1};
+  """.format(returnable, limit)
        # LIMIT 500
 
 
@@ -470,6 +472,7 @@ def alignAllInitialMoves():
         'Stock >> Cust' to each of {0} returnables.""".format(len(movements)))
   insertInitialRealignmentSteps(movements, 'Customer Receipt')
 
+  # LG(getQryIndexedReturnableMovements(1, 0, 999999, onlyStockCust))
   movements = frappe.db.sql(getQryIndexedReturnableMovements(1, 0, 999999, onlyStockCust), as_dict=True)
   LG("""\nInserting a fake REFILL step for each bottle that seems to
               begin life with delivery to a customer.
@@ -481,7 +484,7 @@ def alignAllInitialMoves():
 
 def cleanReturnables():
 
-  limit = 25
+  limit = 50
 
   LG('Getting unprocessed returnables')
   returnables = frappe.db.sql(getQryReturnablesIds(), as_dict=True)
@@ -740,80 +743,6 @@ movementEnds = frappe._dict({
   'Stock >> Cust': { 'F': 'Llenos', 'T': 'Donde Cliente' }
 })
 
-
-def quickTest(company):
-  prepareGlobals(company)
-  LG("""~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nQuick Test: >{}<""".format(ABBR_COMPANY))
-
-  LG("""Returnables:
-     """)
-  returnables = frappe._dict({})
-  result = frappe.db.sql("SELECT code, 'Sucios' as state FROM `tabReturnable`")
-  for row in result:
-    returnables[row[0]] = row[1]
-
-
-  
-  moves = frappe.db.sql("SELECT COUNT(*) as moves FROM `tabReturnable Movement`", as_dict=True)
-  # moves = frappe.db.sql("SELECT COUNT(*) as moves FROM Movements", as_dict=True)
-  loopGroup = round(math.sqrt(moves[0].moves))
-  # LG("loopGroup :: {}".format(loopGroup))
-
-  select = """SELECT parent as returnable, direction as move, timestamp as time, name as id
-                FROM `tabReturnable Movement`
-            ORDER BY timestamp
-               LIMIT"""
-  # select = """SELECT parent, direction FROM Movements LIMIT"""
-  groupCount = 0
-  fullCount = 0
-  trap = 333
-  mismatch = False
-  while True:
-    sql = "{} {}, {}".format(select, groupCount, loopGroup)
-    # LG(sql)
-
-    moves = frappe.db.sql(sql, as_dict=True)
-    limit = len(moves)
-    for MV in moves:
-      # returnable = mvmnt[0]
-      # move = mvmnt[1]
-      # time = mvmnt[2]
-      lastMoveAt = returnables[MV.returnable]
-      thisMoveFrom = movementEnds[MV.move]['F']
-      thisMoveTo = movementEnds[MV.move]['T']
-      matched = "OK" if lastMoveAt == thisMoveFrom else " * * Mismatch * * "
-      # LG(" {} |  '{}'  vs  '{}'   ==> {}".format(returnable, lastMoveAt, thisMoveFrom, matched))
-      LG("{0:06d} ({1} :: {2}) {3} |  '{4}'  vs  '{5}'   ==> {6}".format(fullCount, MV.id, MV.time, MV.returnable, lastMoveAt, thisMoveFrom, matched))
-
-      if lastMoveAt != thisMoveFrom:
-        LG("***  Movement mismatch  ***")
-        mismatch = True
-        break
-
-      returnables[MV.returnable] = thisMoveTo
-      fullCount += 1
-
-    if mismatch:
-      break
-
-    if limit != loopGroup:
-      LG("***  Reached end of data  ***")
-      break
-    groupCount += loopGroup
-
-    if trap < 1:
-      LG("***  TRAP SPRUNG  ***")
-      break
-    trap -= 1
-
-  rslt = loopGroup
-
-  # for returnable in returnables:
-  #   LG("{} : '{}'".format(returnable, returnables[returnable]))
-
-  
-  LG("""~~~~~~~~~~~~~~~~~~~  Done  ~~~~~~~~~~~~~~~~~~""")
-  return "Tested : {}".format(rslt);
 
 
 
@@ -1095,6 +1024,159 @@ def installReturnables(company):
 
 
 # ############################################################################# #
+
+
+def checkSequentialIntegrity():
+  LG("""Returnables:
+     """)
+  returnables = frappe._dict({})
+  result = frappe.db.sql("SELECT code, 'Sucios' as state FROM `tabReturnable` R WHERE R.coherente = 'Si'")
+  for row in result:
+    returnables[row[0]] = row[1]
+
+
+  
+  moves = frappe.db.sql("""
+    SELECT COUNT(*) as moves
+      FROM `tabReturnable` R, `tabReturnable Movement` M
+     WHERE R.coherente = 'Si'
+       AND R.name = M.parent
+      """, as_dict=True)
+  # moves = frappe.db.sql("SELECT COUNT(*) as moves FROM Movements", as_dict=True)
+  loopGroup = round(math.sqrt(moves[0].moves))
+  # LG("loopGroup :: {}".format(loopGroup))
+
+  select = """SELECT 
+                    M.parent as returnable
+                  , M.direction as move
+                  , M.timestamp as time
+                  , R.coherente
+                FROM `tabReturnable` R, `tabReturnable Movement` M
+               WHERE R.coherente = 'Si'
+                 AND R.name = M.parent
+            ORDER BY M.timestamp
+               LIMIT"""
+  # select = """SELECT parent, direction FROM Movements LIMIT"""
+  groupCount = 0
+  fullCount = 0
+  trap = 400
+  mismatch = False
+  while True:
+    sql = "{} {}, {}".format(select, groupCount, loopGroup)
+    # LG(sql)
+
+    moves = frappe.db.sql(sql, as_dict=True)
+    limit = len(moves)
+    for MV in moves:
+      lastMoveAt = returnables[MV.returnable]
+      thisMoveFrom = movementEnds[MV.move]['F']
+      thisMoveTo = movementEnds[MV.move]['T']
+      matched = "OK" if lastMoveAt == thisMoveFrom else " * * Mismatch * * "
+      # LG(" {} |  '{}'  vs  '{}'   ==> {}".format(returnable, lastMoveAt, thisMoveFrom, matched))
+      LG("{0:06d} ({1} :: {2}) {3} |  '{4}'  vs  '{5}'   ==> {6}".format(fullCount, MV.id, MV.time, MV.returnable, lastMoveAt, thisMoveFrom, matched))
+
+      if lastMoveAt != thisMoveFrom:
+        LG("***  Movement mismatch  ***")
+        mismatch = True
+        break
+
+      returnables[MV.returnable] = thisMoveTo
+      fullCount += 1
+
+    if mismatch:
+      break
+
+    if limit != loopGroup:
+      LG("***  Reached end of data  ***")
+      break
+
+    groupCount += loopGroup
+
+    if trap < 1:
+      LG("***  TRAP SPRUNG  ***")
+      break
+    trap -= 1
+
+  rslt = loopGroup
+
+  # for returnable in returnables:
+  #   LG("{} : '{}'".format(returnable, returnables[returnable]))
+
+  
+  LG("""~~~~~~~~~~~~~~~~~~~  Done  ~~~~~~~~~~~~~~~~~~""")
+  return "Tested : {}".format(rslt);
+
+
+def deleteMovementRange(ctx):
+  qry = """
+    SELECT R.name, M.idx, M.name, R.fills, R.last_out, R.last_move, R.last_customer, R.times_out
+      FROM `tabReturnable` R, `tabReturnable Movement` M
+     WHERE R.name = M.parent AND R.name = '{0}' AND M.idx BETWEEN '{1}' AND '{2}'
+  ORDER BY M.idx
+  """.format(ctx.name, ctx.first, ctx.last)
+  rslt = frappe.db.sql(qry)
+  ids = []
+  for row in rslt:
+    # LG("{}".format(row[2]))
+    ids.append(row[2])
+
+  badMoves = "'{}'".format("', '".join(ids))
+  # LG(badMoves)
+
+  dlt = """DELETE FROM `tabReturnable Movement` WHERE name IN ({0})""".format(badMoves)
+  LG(dlt)
+  resp = frappe.db.sql(dlt)
+
+  Ret = frappe.get_doc('Returnable', ctx.name)
+  Ret.coherente = 'No'
+  reindexMovements(Ret)
+  Ret.save()
+
+  return len(resp)
+
+
+def ensureSequentialIntegrity():
+  # anomalousReturnables = [
+  #   {"name": "IBAA592", "first": 1, "last": 1}
+  # ]
+
+  # for returnable in anomalousReturnables:
+  #   count = deleteMovementRange(frappe._dict(anomalousReturnables[0]))
+
+  # alignAllInitialMoves()
+
+  checkSequentialIntegrity()
+
+
+def quickTest(company):
+  prepareGlobals(company)
+  LG("""~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nQuick Test :: >{}<""".format(ABBR_COMPANY))
+
+  ensureSequentialIntegrity()
+
+  # # task = "del"
+  # # task = "align"
+  # task = "confirm"
+  # if task == "del":
+
+
+  #   anomalousReturnables = [
+  #     {"name": "IBAA592", "first": 1, "last": 1}
+  #   ]
+
+  #   for returnable in anomalousReturnables:
+  #     count = deleteMovementRange(frappe._dict(anomalousReturnables[0]))
+  #     # specs = cleanReturnableOnce(frappe._dict(returnable))
+
+  # elif task == "align":
+  #   # cleanReturnables()
+  #   alignAllInitialMoves()
+
+  #   # # LG('???? {}'.format(getQryReturnableMovements("IBAA967")))
+  #   return "Cleaned returnables";
+  # else:
+  #   checkSequentialIntegrity()
+
 
 @frappe.whitelist()
 def tester(company):

@@ -1889,44 +1889,42 @@ QQEOF
 QREOF
 
     cat << QSEOF > ${QTST_DIR}/OrderAllMovementsByTimeStamp.sql
-  SELECT parent, direction, timestamp, substring(timestamp, 1, 10) as date, if(bapu_id = "", CONCAT("ERP", REPLACE(substring(timestamp, 1, 10), "-", "")), bapu_id) as bapu_id, if_customer 
-    FROM \`tabReturnable Movement\`
-   WHERE timestamp > '2019-02-04'
-ORDER BY timestamp
-   LIMIT 40;  
+#   SELECT parent, direction, timestamp, substring(timestamp, 1, 10) as date, if(bapu_id = "", CONCAT("ERP", REPLACE(substring(timestamp, 1, 10), "-", "")), bapu_id) as bapu_id, if_customer 
+#     FROM \`tabReturnable Movement\`
+#    WHERE timestamp > '2019-02-04'
+# ORDER BY timestamp
+#    LIMIT 40;  
 
-  SELECT SQL_CALC_FOUND_ROWS
-            substring(timestamp, 1, 10) as date
-          , if(bapu_id = "", CONCAT("ERP", REPLACE(substring(timestamp, 1, 10), "-", "")), bapu_id) as bapu_id
-          , COUNT(parent) AS Bottles
-    FROM \`tabReturnable Movement\`
-   WHERE direction = "Stock >> Stock"
-GROUP BY date, bapu_id
-ORDER BY date, bapu_id
-   # LIMIT 40
-   ;
+#   SELECT SQL_CALC_FOUND_ROWS
+#             substring(timestamp, 1, 10) as date
+#           , if(bapu_id = "", CONCAT("ERP", REPLACE(substring(timestamp, 1, 10), "-", "")), bapu_id) as bapu_id
+#           , COUNT(parent) AS Bottles
+#     FROM \`tabReturnable Movement\`
+#    WHERE direction = "Stock >> Stock"
+# GROUP BY date, bapu_id
+# ORDER BY date, bapu_id
+#    # LIMIT 40
+#    ;
 
-SELECT FOUND_ROWS();
+# SELECT FOUND_ROWS();
 
-SELECT CONCAT('Create returnable locator\n') as \`Comment\` \G;
-DROP TABLE IF EXISTS locator;
-    CREATE TEMPORARY TABLE locator ENGINE=MEMORY
-        AS SELECT code,  state
-      FROM \`tabReturnable\`
-     LIMIT 10,2
-    ;  
+# SELECT CONCAT('Create returnable locator\n') as \`Comment\` \G;
+# DROP TABLE IF EXISTS locator;
+#     CREATE TEMPORARY TABLE locator ENGINE=MEMORY
+#         AS SELECT code,  state
+#       FROM \`tabReturnable\`
+#      LIMIT 10,2
+#     ;  
 
-  SELECT count(*)
-    FROM \`tabReturnable Movement\`
-    ;  
+#   SELECT count(*)
+#     FROM \`tabReturnable Movement\`
+#     ;  
 
-  SELECT parent, direction
-    FROM \`tabReturnable Movement\`
-    LIMIT 20
-    ;  
+#   SELECT parent, direction
+#     FROM \`tabReturnable Movement\`
+#     LIMIT 20
+#     ;  
 
-SELECT parent, direction, timestamp FROM \`tabReturnable Movement\` ORDER BY timestamp LIMIT 0, 5;
-SELECT parent, direction, timestamp FROM \`tabReturnable Movement\` ORDER BY timestamp LIMIT 5, 5;
 
 
 #  SELECT code,  state
@@ -1943,7 +1941,28 @@ SELECT parent, direction, timestamp FROM \`tabReturnable Movement\` ORDER BY tim
 #         ORDER BY timestamp
 #     ;
 
-delete from \`tabReturnable Movement\` where name =  '562db5485f';
+# SELECT M.parent, direction, timestamp, R.coherente FROM \`tabReturnable\` R, \`tabReturnable Movement\` M WHERE R.name = M.parent AND R.coherente = 'Si' ORDER BY timestamp LIMIT 0, 5;
+
+#   SELECT *
+#     FROM \`tabReturnable\` R, \`tabReturnable Movement\` M
+#    WHERE R.name = M.parent
+#      AND R.name = 'IBAA255'
+# ORDER BY timestamp
+# #   LIMIT 5, 5
+# ;
+
+
+      SELECT parent, name, idx, direction, from_stock, from_customer, to_customer, to_stock, timestamp, bapu_id, if_customer
+        FROM \`tabReturnable Movement\` M
+       WHERE parent LIKE 'IBAA592'
+         AND parent NOT LIKE ''
+    ORDER BY parent, creation;
+     #  LIMIT 10, 0;
+
+      SELECT name, count(*) as HowMany
+        FROM \`tabReturnable\` R
+       WHERE name LIKE 'IBAA592';
+
 
 QSEOF
 
