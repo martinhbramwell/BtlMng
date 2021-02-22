@@ -15,6 +15,7 @@ import math
 
 import pandas as pd
 
+from collections import OrderedDict
 
 from operator import attrgetter
 from threading import Thread
@@ -32,6 +33,10 @@ class DatetimeEncoder(json.JSONEncoder):
       return str(obj)
 
 dateformat = "%Y-%m-%d"
+
+def daterange(start_date, end_date):
+    for day in range(int((end_date - start_date).days)):
+        yield start_date + datetime.timedelta(day)
 
 
 def LG(txt, end = "\n"):
@@ -621,12 +626,6 @@ def getQryIndexedReturnableMovements(index, offset = 0, rows = 0, direction = "'
          LIMIT {1}, {2};
   """.format(index, offset, rows, direction)
        # LIMIT 500
-# | CLAA |       21 |
-# | CLCC |        4 |
-# | IBAA |      978 |
-# | IBCC |      995 |
-# | IBDD |      999 |
-# | IBEE |       90 |
 
 
 def insert_new_stock_entry(move, batch_name):
@@ -732,23 +731,6 @@ def processStep(movements):
         LG(""" \n\n\n $$$$$$$$$$$$$$$$$$ ERROR $$$$$$$$$$$$$$$$$$$$\n    - Bottle: {0}. Flg: {1}. Dir: {2}. BAPU ID: {3}. Cnt: {4}""".format(
           move.name, move.flag, move.direction, move.bapu_id, move.returnables
         ))
-
-
-
-
-
-movementEnds = frappe._dict({
-  'Cust >> Stock': { 'F': 'Donde Cliente', 'T': 'Sucios' },
-  'Stock >> Stock': { 'F': 'Sucios', 'T': 'Llenos' },
-  'Stock >> Cust': { 'F': 'Llenos', 'T': 'Donde Cliente' }
-})
-
-
-
-
-
-
-
 
 
 def prepareGlobals(company):
@@ -1006,107 +988,6 @@ def iterateReturnableBatches():
           batchTransfer[batch.direction](spec)
 
 
-
-
-@frappe.whitelist()
-def installReturnables(company):
-  # LG("Getting values for company: {}".format(company))
-  prepareGlobals(company)
-
-  cleanReturnables()
-  alignAllInitialMoves()
-
-  makeInitialAcquisitions()
-
-  return "Installed Returnables";
-
-
-
-
-# ############################################################################# #
-
-
-def checkSequentialIntegrity():
-  LG("""Returnables:
-     """)
-  returnables = frappe._dict({})
-  result = frappe.db.sql("SELECT code, 'Sucios' as state FROM `tabReturnable` R WHERE R.coherente = 'Si'")
-  for row in result:
-    returnables[row[0]] = row[1]
-
-
-  
-  moves = frappe.db.sql("""
-    SELECT COUNT(*) as moves
-      FROM `tabReturnable` R, `tabReturnable Movement` M
-     WHERE R.coherente = 'Si'
-       AND R.name = M.parent
-      """, as_dict=True)
-  # moves = frappe.db.sql("SELECT COUNT(*) as moves FROM Movements", as_dict=True)
-  loopGroup = round(math.sqrt(moves[0].moves))
-  # LG("loopGroup :: {}".format(loopGroup))
-
-  select = """SELECT 
-                    M.parent as returnable
-                  , M.direction as move
-                  , M.timestamp as time
-                  , R.coherente
-                FROM `tabReturnable` R, `tabReturnable Movement` M
-               WHERE R.coherente = 'Si'
-                 AND R.name = M.parent
-            ORDER BY M.timestamp
-               LIMIT"""
-  # select = """SELECT parent, direction FROM Movements LIMIT"""
-  groupCount = 0
-  fullCount = 0
-  trap = 400
-  mismatch = False
-  while True:
-    sql = "{} {}, {}".format(select, groupCount, loopGroup)
-    # LG(sql)
-
-    moves = frappe.db.sql(sql, as_dict=True)
-    limit = len(moves)
-    for MV in moves:
-      lastMoveAt = returnables[MV.returnable]
-      thisMoveFrom = movementEnds[MV.move]['F']
-      thisMoveTo = movementEnds[MV.move]['T']
-      matched = "OK" if lastMoveAt == thisMoveFrom else " * * Mismatch * * "
-      # LG(" {} |  '{}'  vs  '{}'   ==> {}".format(returnable, lastMoveAt, thisMoveFrom, matched))
-      LG("{0:06d} ({1} :: {2}) {3} |  '{4}'  vs  '{5}'   ==> {6}".format(fullCount, MV.id, MV.time, MV.returnable, lastMoveAt, thisMoveFrom, matched))
-
-      if lastMoveAt != thisMoveFrom:
-        LG("***  Movement mismatch  ***")
-        mismatch = True
-        break
-
-      returnables[MV.returnable] = thisMoveTo
-      fullCount += 1
-
-    if mismatch:
-      break
-
-    if limit != loopGroup:
-      LG("***  Reached end of data  ***")
-      break
-
-    groupCount += loopGroup
-
-    if trap < 1:
-      LG("***  TRAP SPRUNG  ***")
-      break
-    trap -= 1
-
-  rslt = loopGroup
-
-  # for returnable in returnables:
-  #   LG("{} : '{}'".format(returnable, returnables[returnable]))
-
-  
-  LG("""~~~~~~~~~~~~~~~~~~~  Done  ~~~~~~~~~~~~~~~~~~""")
-  return "Tested : {}".format(rslt);
-
-
 def deleteMovementRange(ctx):
   qry = """
     SELECT R.name, M.idx, M.name, R.fills, R.last_out, R.last_move, R.last_customer, R.times_out
@@ -1135,7 +1016,137 @@ def deleteMovementRange(ctx):
   return len(resp)
 
 
-def ensureSequentialIntegrity():
+movementEnds = frappe._dict({
+  'Cust >> Stock': { 'F': 'Donde Cliente', 'T': 'Sucios' },
+  'Stock >> Stock': { 'F': 'Sucios', 'T': 'Llenos' },
+  'Stock >> Cust': { 'F': 'Llenos', 'T': 'Donde Cliente' }
+})
+
+
+# def ensureCorrespondingBatch(move):
+#   LG("{0} : {1}".format(move.time.strftime('%Y-%m-%d'), move.returnable))
+#   qry = """
+#     SELECT
+#           R.name
+#         , CAST(R.timestamp as date) as date
+#         , R.bapu_id
+#         , I.bottle
+#       FROM `tabReturnable Batch` R, `tabReturnable Batch Item` I
+#      WHERE R.name = I.parent
+#        AND direction = 'Stock >> Stock'
+#        AND I.bottle = '{}'
+#        AND CAST(R.timestamp as date) = '{}'
+#   """.format(move.returnable, move.time.strftime('%Y-%m-%d'))
+
+#   moves = frappe.db.sql(qry, as_dict=True)
+#   if len(moves) < 1:
+#     LG("Nope :: {}".format(qry))
+#   else:
+#     LG("{}".format(moves))
+
+
+def initializeReturnablesStateLookup(isCoherent = True):
+  returnables = frappe._dict({})
+  part = "SELECT R.code, R.coherente, null as state FROM `tabReturnable` R"
+  # part = "SELECT R.code, R.coherente, 'Envases IB Sucios - LSSA' as state FROM `tabReturnable` R"
+  qry = "{} {}".print(part, " WHERE R.coherente = 'Si'") if isCoherent else part
+
+  result = frappe.db.sql(qry, as_dict = True)
+  for row in result:
+    returnables[row.code] = row
+
+  return returnables
+
+def checkSequentialIntegrity():
+  LG("""Checking Returnables sequential integrity:
+     """)
+  returnables = initializeReturnablesStateLookup()
+  
+  moves = frappe.db.sql("""
+    SELECT COUNT(*) as moves
+      FROM `tabReturnable` R, `tabReturnable Movement` M
+     WHERE R.coherente = 'Si'
+       AND R.name = M.parent
+      """, as_dict=True)
+  # moves = frappe.db.sql("SELECT COUNT(*) as moves FROM Movements", as_dict=True)
+  loopGroup = round(math.sqrt(moves[0].moves))
+  # LG("loopGroup :: {}".format(loopGroup))
+
+  select = """SELECT 
+                    M.parent as returnable
+                  , M.direction as move
+                  , M.timestamp as time
+                  , R.coherente
+                FROM `tabReturnable` R, `tabReturnable Movement` M
+               WHERE R.coherente = 'Si'
+                 AND R.name = M.parent
+            ORDER BY M.timestamp
+               LIMIT"""
+  # select = """SELECT parent, direction FROM Movements LIMIT"""
+  groupCount = 0
+  fullCount = 1
+  trap = 400
+  mismatch = False
+  while True:
+    sql = "{} {}, {}".format(select, groupCount, loopGroup)
+    # LG(sql)
+
+    moves = frappe.db.sql(sql, as_dict=True)
+    limit = len(moves)
+    for MV in moves:
+      lastMoveAt = returnables[MV.returnable]
+      thisMoveFrom = movementEnds[MV.move]['F']
+      thisMoveTo = movementEnds[MV.move]['T']
+      matched = "OK" if lastMoveAt == thisMoveFrom else " * * Mismatch * * "
+
+      LG("{0:06d} ({1} :: {2}) {3} |  '{4}'  vs  '{5}'   ==> {6}".format(fullCount, MV.move, MV.time, MV.returnable, lastMoveAt, thisMoveFrom, matched))
+
+      if lastMoveAt != thisMoveFrom:
+        LG("***  Movement mismatch  ***")
+        mismatch = True
+        break
+
+      # # if MV.move == 'Stock >> Stock' and MV.time > datetime.datetime.strptime('2021-02-09 23:59:59', "%Y-%m-%d %H:%M:%S"):
+      # if MV.move == 'Stock >> Stock' and MV.time > datetime.datetime.strptime('2020-12-31 23:59:59', "%Y-%m-%d %H:%M:%S"):
+      #   LG("{0:06d} ".format(fullCount), end = '')
+      #   ensureCorrespondingBatch(MV)
+
+      returnables[MV.returnable] = thisMoveTo
+      fullCount += 1
+
+    if mismatch:
+      break
+
+    if limit != loopGroup:
+      LG("***  Reached end of data  ***")
+      break
+
+    groupCount += loopGroup
+
+    if trap < 1:
+      LG("***  TRAP SPRUNG  ***")
+      break
+    trap -= 1
+
+  rslt = loopGroup
+
+  # for returnable in returnables:
+  #   LG("{} : '{}'".format(returnable, returnables[returnable]))
+
+  
+  LG("""~~~~~~~~~~~~~~~~~~~  Done  ~~~~~~~~~~~~~~~~~~""")
+  return "Tested : {}".format(rslt);
+
+
+
+@frappe.whitelist()
+def installReturnables(company):
+  # LG("Getting values for company: {}".format(company))
+  prepareGlobals(company)
+
+  cleanReturnables()
+  alignAllInitialMoves()
+
   # anomalousReturnables = [
   #   {"name": "IBAA592", "first": 1, "last": 1}
   # ]
@@ -1143,39 +1154,227 @@ def ensureSequentialIntegrity():
   # for returnable in anomalousReturnables:
   #   count = deleteMovementRange(frappe._dict(anomalousReturnables[0]))
 
-  # alignAllInitialMoves()
 
   checkSequentialIntegrity()
+  
+  # makeInitialAcquisitions()
+
+  return "Installed Returnables";
+
+
+
+
+# ############################################################################# #
+
+
+
+
+
+def ensureSequentialIntegrity():
+  anomalousReturnables = [
+    {"name": "IBAA592", "first": 1, "last": 1}
+  ]
+
+  for returnable in anomalousReturnables:
+    count = deleteMovementRange(frappe._dict(anomalousReturnables[0]))
+
+  checkSequentialIntegrity()
+
+def getSqlMovementsForDay(day):
+  # LG("Get movements for {}".format(day))
+  sql = """
+    SELECT
+            M.name
+          , M.parent
+          , M.direction
+          , M.from_stock
+          , M.from_customer
+          , M.to_customer
+          , M.to_stock
+          , M.timestamp
+          , cast(M.timestamp as date) AS date
+          , M.bapu_id
+          , M.transferred
+      FROM `tabReturnable Movement` M
+     WHERE cast(timestamp as date) = '{}'
+  ORDER BY timestamp desc
+     -- LIMIT 2;
+  """.format(day)
+  return sql
+
+def getSqlBatchedItemsForDay(day):
+  LG("Get batches for {}".format(day))
+  sql = """
+    SELECT
+          R.name
+        , CAST(R.timestamp as date) as date
+        , R.bapu_id
+        , I.bottle
+        , R.direction
+        , R.from_stock
+        , R.from_customer
+        , R.to_customer
+        , R.to_stock
+        , R.returnables
+      FROM `tabReturnable Batch` R, `tabReturnable Batch Item` I
+     WHERE R.name = I.parent
+       AND CAST(timestamp as date) = '{}'
+  ORDER BY timestamp
+     -- LIMIT 2;
+  """.format(day)
+  return sql
+
+
+def removeprefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text
+
+def incrementSequentialName(name, prefix):
+  seq = 1 + int(removeprefix(name, prefix))
+  return seq
+
+
+def indexBatchItems(workDay):
+  batchItems = frappe.db.sql(getSqlBatchedItemsForDay(workDay), as_dict=True)
+  itemsCount = len(batchItems)
+
+  lookup = frappe._dict({})
+  # uniqueBatchlookup = frappe._dict({})
+
+  for aBatchedItem in batchItems:
+    lookup["{}|{}".format(aBatchedItem.bottle, aBatchedItem.direction)] = aBatchedItem
+
+    # if aBatchedItem.bapu_id:
+    #   uniqueBatchlookup.setdefault(aBatchedItem.bapu_id, []).append(aBatchedItem.bottle)
+
+  return lookup, itemsCount
+
+def buildChronologicalBatches(workDay):
+
+  daysMoves = frappe.db.sql(getSqlMovementsForDay(workDay), as_dict=True)
+  moveCount = len(daysMoves)
+
+  newBatchCount = 0
+  newBatchlookup = frappe._dict({})
+
+  batches = OrderedDict()
+  for aMove in daysMoves:
+
+    # LG("A move :: {} {}  {} {}".format(aMove.parent, aMove.bapu_id, aMove.name, aMove.timestamp), end = '\n')
+    try:
+
+      itsBatch = uniqueBatchItemlookup["{}|{}".format(aMove.parent, aMove.direction)]
+
+      assert aMove.from_stock == itsBatch.from_stock,          """From stock :: {} is not {}""".format(aMove.from_stock, itsBatch.from_stock)
+      assert aMove.to_stock     == itsBatch.to_stock,            """To stock :: {} is not {}""".format(aMove.to_stock,     itsBatch.to_stock)
+      assert aMove.from_customer == itsBatch.from_customer, """From customer :: {} is not {}""".format(aMove.from_customer,  itsBatch.from_customer)
+      assert aMove.to_customer    == itsBatch.to_customer,    """To customer :: {} is not {}""".format(aMove.to_customer,     itsBatch.to_customer)
+
+      # LG("         It's in a batch :: {} -- ".format(itsBatch.name))
+      batches.setdefault(itsBatch.name, []).append(aMove)
+
+    except:
+
+      frm = aMove.from_stock if aMove.from_customer is None else aMove.from_customer
+      to = aMove.to_stock if aMove.to_customer is None else aMove.to_customer
+
+      fakeBapuId = "{}_{}_{}".format(aMove.direction, frm, to)
+
+      if fakeBapuId not in newBatchlookup:
+        newBatchlookup.setdefault(fakeBapuId, [])
+        newBatchCount += 1
+
+      newBatchlookup[fakeBapuId].append(aMove.name)
+
+      # LG("         It's in a  * NEW *  batch :: {} -- ".format(fakeBapuId))
+      batches.setdefault(fakeBapuId, []).append(aMove)
+
+  return batches, moveCount, newBatchCount
+
+def verifyChronologicalBatches(batches, returnables):
+  LG("\nAll batches ::")
+
+  for batchName in batches:
+    batch = batches[batchName]
+    # LG("\nBATCH {} has {} moves".format(batchName, len(batch)))
+    moveCount = 1
+    for aMove in batch:
+      frm = aMove.from_stock if aMove.from_customer is None else aMove.from_customer
+      to = aMove.to_stock if aMove.to_customer is None else aMove.to_customer
+
+      bottleId = aMove.parent
+      bottle = returnables[bottleId]
+      if bottle.coherente == 'Si':
+        # LG("     Batch {} move #{} - {} moves bottle '{}' from '{}' to '{}'".format(batchName, moveCount, aMove.name, aMove.parent, frm, to))
+        if bottle.state is None:
+          LG("                   Bottle {} is unseen ({}).  Comes from {}".format(bottleId, to, frm))
+          returnables[bottleId].state = frm
+        elif bottle.state == to:
+          LG("                   Bottle {} is at {}.  Comes from {}".format(bottleId, to, frm))
+          returnables[bottleId].state = frm
+        else:
+          LG("    *** FAIL ***   Bottle {} :: '{}' DOES NOT equal {}".format(bottleId, bottle.state, frm))
+          LG("                     Bottle {} ".format(bottle))
+          # return
+
+        moveCount += 1
+
+      else:
+        LG("\n\n               *** Incoherent Bottle? '{}' ({})\n\n".format(bottleId, bottle.coherente))
+
+
+def processDailyBatch(workDay, returnables):
+
+  uniqueBatchItemlookup, batchedItemCount = indexBatchItems(workDay)
+
+  CHRONOLOGICAL_BATCHES, moveCount, newBatchCount = buildChronologicalBatches(workDay)
+
+
+  LG("[{}] Day's moves :: {}, Day's old batched items :: {}, Day's new batched items :: {}".format(workDay, moveCount, batchedItemCount, newBatchCount))
+
+  # LG("   ### {} ### (==> processDailyBatch)".format(id(returnables)))
+  verifyChronologicalBatches(CHRONOLOGICAL_BATCHES, returnables)
+  # LG("   ### {} ### (processDailyBatch ==>)".format(id(returnables)))
+
+  LG("\n\n              *** Processed movements of day {} ***\n\n".format(workDay))
+
+  return returnables
+
+def processByDailyBatches():
+  someDay = 31
+  numDays = 10
+  startDate = datetime.date(2021, 2, 11)
+  # startDate = datetime.date(2021, 1, 5)
+  endDate = datetime.date(2021, 2, 12)
+
+  returnables = initializeReturnablesStateLookup(isCoherent = False)
+
+  dates = pd.date_range(startDate, endDate)
+  for aDay in reversed(dates):
+    workDay = aDay.strftime("%Y-%m-%d")
+    # LG("### {} ### (==> processByDailyBatches)".format(id(returnables)))
+    processDailyBatch(workDay, returnables)
+    # LG("### {} ### (processByDailyBatches ==>)".format(id(returnables)))
+
+    LG("\n\n              *** Processed batches of day {} ***\n\n".format(workDay))
+
+  LG("\n              *** Processed all movements ***\n\n")
+  return
+
+
+
 
 
 def quickTest(company):
   prepareGlobals(company)
   LG("""~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nQuick Test :: >{}<""".format(ABBR_COMPANY))
 
-  ensureSequentialIntegrity()
+  # checkSequentialIntegrity()
+  # ensureSequentialIntegrity()
+  processByDailyBatches()
 
-  # # task = "del"
-  # # task = "align"
-  # task = "confirm"
-  # if task == "del":
-
-
-  #   anomalousReturnables = [
-  #     {"name": "IBAA592", "first": 1, "last": 1}
-  #   ]
-
-  #   for returnable in anomalousReturnables:
-  #     count = deleteMovementRange(frappe._dict(anomalousReturnables[0]))
-  #     # specs = cleanReturnableOnce(frappe._dict(returnable))
-
-  # elif task == "align":
-  #   # cleanReturnables()
-  #   alignAllInitialMoves()
-
-  #   # # LG('???? {}'.format(getQryReturnableMovements("IBAA967")))
-  #   return "Cleaned returnables";
-  # else:
-  #   checkSequentialIntegrity()
+  return 'Ok!'
 
 
 @frappe.whitelist()

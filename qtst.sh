@@ -1870,24 +1870,6 @@ QQEOF
 
 
 
-
-
-    cat << QREOF > ${QTST_DIR}/GetBatchDates.sql
-  SELECT * FROM \`tabReturnable Batch\` R WHERE timestamp BETWEEN "2021-02-02 00:00:00" AND "2021-02-02 23:59:59" ORDER BY timestamp LIMIT 20;
-  SELECT
-            R.name
-          , R.bapu_id
-          , R.timestamp
-          , R.direction
-          , R.from_stock
-          , R.from_customer
-          , R.to_customer
-          , R.to_stock
-          , R.returnables
-    FROM \`tabReturnable Batch\` R ORDER BY R.timestamp DESC LIMIT 20;
-  SELECT bottle FROM \`tabReturnable Batch Item\` R WHERE parent = "RTN-BCH-000051189" LIMIT 20;
-QREOF
-
     cat << QSEOF > ${QTST_DIR}/OrderAllMovementsByTimeStamp.sql
 #   SELECT parent, direction, timestamp, substring(timestamp, 1, 10) as date, if(bapu_id = "", CONCAT("ERP", REPLACE(substring(timestamp, 1, 10), "-", "")), bapu_id) as bapu_id, if_customer 
 #     FROM \`tabReturnable Movement\`
@@ -1966,6 +1948,175 @@ QREOF
 
 QSEOF
 
+
+
+
+    cat << GBDEOF > ${QTST_DIR}/GetBatchDates.sql
+  SELECT
+            R.name
+          , R.bapu_id
+          , R.timestamp
+          , cast(R.timestamp as date) AS date
+          , R.direction
+          , R.from_stock
+          , R.from_customer
+          , R.to_customer
+          , R.to_stock
+          , R.returnables
+    FROM \`tabReturnable Batch\` R
+   WHERE direction = 'Stock >> Stock'
+ORDER BY R.timestamp
+# ;
+  LIMIT 20;
+
+  SELECT SQL_CALC_FOUND_ROWS
+            R.bapu_id
+          , sum(R.returnables)
+    FROM \`tabReturnable Batch\` R
+   WHERE direction = 'Stock >> Stock'
+GROUP BY R.bapu_id
+ORDER BY R.timestamp
+;
+
+  SELECT SQL_CALC_FOUND_ROWS *
+    FROM \`tabReturnable Batch\` R, \`tabReturnable Batch Item\` I
+   WHERE R.name = I.parent
+     AND direction = 'Stock >> Stock'
+ORDER BY R.timestamp
+# ;
+  LIMIT 20;
+
+
+SELECT FOUND_ROWS();
+
+  # SELECT bottle FROM \`tabReturnable Batch Item\` R WHERE parent = "RTN-BCH-000051189" LIMIT 20;
+
+  SELECT  SQL_CALC_FOUND_ROWS
+           M.name
+         , CAST(M.timestamp as date) as date
+         , M.parent
+    FROM \`tabReturnable Movement\` M
+   WHERE direction = 'Stock >> Stock'
+   LIMIT 2
+;
+
+SELECT FOUND_ROWS();
+
+  SELECT SQL_CALC_FOUND_ROWS
+            R.name
+          , CAST(R.timestamp as date) as date
+          , R.bapu_id
+          , I.bottle
+    FROM \`tabReturnable Batch\` R, \`tabReturnable Batch Item\` I
+   WHERE R.name = I.parent
+     AND direction = 'Stock >> Stock'
+     # AND I.bottle = 'IBAA959'
+     AND CAST(R.timestamp as date) > '2020-12-31'
+ORDER BY R.timestamp
+# ;
+  LIMIT 4;
+
+
+
+GBDEOF
+
+   cat << VBSEOF > ${QTST_DIR}/verifyBatchSequences.sql
+  SELECT SQL_CALC_FOUND_ROWS
+            R.name
+          , CAST(R.timestamp as date) as date
+          , R.bapu_id
+          , R.direction
+          , count(I.bottle)
+    FROM \`tabReturnable Batch\` R, \`tabReturnable Batch Item\` I
+   WHERE R.name = I.parent
+     # AND direction = 'Stock >> Stock'
+     # AND I.bottle = 'IBAA959'
+     # AND CAST(R.timestamp as date) > '2020-12-31'
+GROUP BY I.bottle
+ORDER BY R.timestamp
+# ;
+  LIMIT 20;
+
+SELECT FOUND_ROWS();
+
+UPDATE \`tabReturnable Movement\`SET transferred = 0;
+SELECT 'Cleared  \`tabReturnable Movement\`  "transferred" to zero\n\n' as \`Comment\` \G;
+
+
+SELECT SQL_CALC_FOUND_ROWS *
+  FROM \`tabReturnable Movement\` M
+ # WHERE M.transferred > 0 
+# ;
+  LIMIT 2;
+SELECT FOUND_ROWS();
+SELECT 'Got all columns  \`tabReturnable Movement\`\n\n' as \`Comment\` \G;
+
+
+SET @aDay = '2016-01-01';
+  SELECT SQL_CALC_FOUND_ROWS
+          name
+        , parent
+        , direction
+        , from_stock
+        , from_customer
+        , to_customer
+        , to_stock
+        , timestamp
+        , cast(timestamp as date) AS date
+        , bapu_id
+        , transferred
+    FROM \`tabReturnable Movement\` M
+   WHERE cast(timestamp as date) = @aDay
+ORDER BY timestamp
+# ;
+  LIMIT 2;
+SELECT FOUND_ROWS();
+SELECT CONCAT('Got required columns from \`tabReturnable Movement\` for day "', @aDay, '"\n\n') as \`Comment\` \G;
+
+
+  SELECT SQL_CALC_FOUND_ROWS
+        R.name
+      , CAST(R.timestamp as date) as date
+      , R.bapu_id
+      , I.bottle
+      , R.from_stock
+      , R.from_customer
+      , R.to_customer
+      , R.to_stock
+      , R.returnables
+    FROM \`tabReturnable Batch\` R, \`tabReturnable Batch Item\` I
+   WHERE R.name = I.parent
+     AND R.bapu_id = 'E_0001232'
+     # AND CAST(timestamp as date) = @aDay
+ORDER BY timestamp
+# ;
+  LIMIT 8;
+SELECT FOUND_ROWS();
+SELECT CONCAT('Got required columns from \`tabReturnable Batch Item\` for day "', @aDay, '"\n\n') as \`Comment\` \G;
+
+
+  SELECT
+        R.name
+      , CAST(R.timestamp as date) as date
+      , R.bapu_id
+      , I.bottle
+      , R.from_stock
+      , R.from_customer
+      , R.to_customer
+      , R.to_stock
+      , R.returnables
+    FROM \`tabReturnable Batch\` R, \`tabReturnable Batch Item\` I
+   WHERE R.name = I.parent
+     AND CAST(timestamp as date) = '2016-01-01'
+ORDER BY timestamp
+# ;
+  LIMIT 3;
+
+select * from \`tabReturnable Batch\` limit 1;
+select * from \`tabReturnable Batch Item\` limit 1;
+
+VBSEOF
+
 if [[ -f envars.sh ]]; then
     source  envars.sh;
     # mysql -t ${1} < ${QTST_DIR}/qtst.sql;
@@ -1973,9 +2124,12 @@ if [[ -f envars.sh ]]; then
     # mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/AcquisitionDates.sql;
     # mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/GetAcquisitionDates.sql;
 
+    # mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/OrderAllMovementsByTimeStamp.sql;
+
+
     # mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/GetBatchDates.sql;
 
-    mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/OrderAllMovementsByTimeStamp.sql;
+    mysql -t ${ERPNEXT_SITE_DB} < ${QTST_DIR}/verifyBatchSequences.sql;
 
 else 
     echo -e "Found NO symbolic link 'envars.sh' to an environment variables file.";

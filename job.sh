@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 
-sleep 1;
+sleep 2;
 
 
 if [[ -f envars.sh ]]; then
