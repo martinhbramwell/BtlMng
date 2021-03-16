@@ -1,1 +1,1 @@
-../FacElect/install_scripts/envars.sh
+../electronic_invoice/install_scripts/envars.sh
