@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 
-sleep 4;
+sleep 1;
 
 
 if [[ -f envars.sh ]]; then
@@ -18,8 +18,8 @@ if [[ -f envars.sh ]]; then
 
 	declare EP_NAME="";
 	# EP_NAME="installReturnables";
-	EP_NAME="tester";
 	EP_NAME="queueInstallReturnables";
+	EP_NAME="tester";
 
 	curl -s -L -X POST "${ENDPOINT}.${EP_NAME}" \
 	-H "${AUTHZ}" \

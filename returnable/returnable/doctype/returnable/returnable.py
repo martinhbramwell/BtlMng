@@ -72,7 +72,7 @@ def processSimple(list, name):
   LG("\n")
   numbers = []
   for returnable in list:
-    LG("Dirty : '{}'".format(returnable.name))
+    LG("{} : '{}'".format(name, returnable.name))
     numbers.append(returnable.name)
 
   LG("Create Stock Entry for : {}".format(numbers))
@@ -91,7 +91,7 @@ def processReturnable(returnable):
   LG("Returnable ==> {}.  State {}.  Last cust {}.".format(returnable.name, returnable.state, returnable.last_customer))
 
 def createStockEntry(spec):
-  LG("Create {} item stock entry to {}.".format(len(spec.serial_numbers), spec.warehouse_name))
+  # LG("Create {} item stock entry to {}.".format(len(spec.serial_numbers), spec.warehouse_name))
 
   stock_entry = frappe.get_doc({
     'doctype': 'Stock Entry',
@@ -114,40 +114,11 @@ def createStockEntry(spec):
 
 
 def createStockEntryForCustomer(returnable, numbers):
-  LG("Create {} item stock entry for customer :: {}.  ({})".format(len(numbers), returnable.last_customer, NAME_COMPANY))
+  # LG("Create {} item stock entry for customer :: {}.  ({})".format(len(numbers), returnable.last_customer, NAME_COMPANY))
   
   whs_name = "{} - {}".format(returnable.last_customer, ABBR_COMPANY)
-  # LG("Check if warehouse '{}' exists".format(whs_name))
-  try:
-    ccw = frappe.get_doc('Warehouse', whs_name)
-    LG("Warehouse '{}' already exists".format(ccw.name))
-  except:
-    LG("creating")
-    customer_consignment_warehouse = frappe.get_doc({
-      'doctype': 'Warehouse',
-      'warehouse_name': returnable.last_customer,
-      'parent_warehouse': "{} - {}".format('Envases IB Custodia del Cliente', ABBR_COMPANY),
-      'company': NAME_COMPANY,
-      'account': "{} - {}".format('1.1.5.06 - Envases Custodiados', ABBR_COMPANY),
-      'warehouse_type': 'Consignado'
-    })
-
-    # LG("inserting")
-    # customer_consignment_warehouse.insert(
-    #   ignore_if_duplicate=True, # dont insert if DuplicateEntryError is thrown
-    # )
-
-    LG("saving")
-    customer_consignment_warehouse.save()
-    LG("submitting")
-    customer_consignment_warehouse.submit()
-
-    frappe.db.commit()
-
-  LG("retrieving")
-
   ccw = frappe.get_doc('Warehouse', whs_name)
-  ccw.reload()
+
   LG("Creating '{}' item Stock Entry for {}".format(numbers, ccw.name))
   createStockEntry(frappe._dict({
     'serial_numbers': numbers,
@@ -180,6 +151,32 @@ def processByCustomer(list):
 
   LG("Completed block")
 
+def makeWarehouses(list):
+  LG("\n")
+  for returnable in list:
+    
+    whs_name = "{} - {}".format(returnable.last_customer, ABBR_COMPANY)
+    # LG("Check if warehouse '{}' exists".format(whs_name))
+    try:
+      ccw = frappe.get_doc('Warehouse', whs_name)
+      # LG("Warehouse '{}' already exists".format(ccw.name))
+    except:
+      LG("Creating warehouse '{}'.".format(whs_name))
+      customer_consignment_warehouse = frappe.get_doc({
+        'doctype': 'Warehouse',
+        'warehouse_name': returnable.last_customer,
+        'parent_warehouse': "{} - {}".format('Envases IB Custodia del Cliente', ABBR_COMPANY),
+        'company': NAME_COMPANY,
+        'account': "{} - {}".format('1.1.5.06 - Envases Custodiados', ABBR_COMPANY),
+        'warehouse_type': 'Consignado'
+      })
+
+      customer_consignment_warehouse.save()
+      customer_consignment_warehouse.submit()
+      LG("- o 0 o -")
+
+
+
 def processReturnables(query, func):
   returnables = frappe.db.sql(query, as_dict=True)
   func(returnables)
@@ -193,7 +190,7 @@ def processReturnablesGroup(group, func):
     query = getQryReturnable(returnable = 'IB%', state = group, rows = rows, offset = offset)
     cnt = processReturnables(query, func)
     offset = offset + rows
-    LG("count {}, sleep {}".format(cnt, sleep))
+    # LG("count {}, sleep {}".format(cnt, sleep))
     # time.sleep(2)
 
 def install_returnables(company):
@@ -202,14 +199,17 @@ def install_returnables(company):
 
   LG("Company :: {}".format(NAME_COMPANY))
 
+  LG("\n\nCreate customer consignment warehouses")
+  processReturnablesGroup('Donde Cliente', makeWarehouses)
+
   LG("\n\nProcess Customer Returnables")
   processReturnablesGroup('Donde Cliente', processByCustomer)
 
-  # LG("\n\nProcess Dirty Returnables ")
-  # processReturnablesGroup('Sucio', processDirty)
+  LG("\n\nProcess Full Returnables")
+  processReturnablesGroup('Lleno', processFull)
 
-  # LG("\n\nProcess Full Returnables")
-  # processReturnablesGroup('Lleno', processFull)
+  LG("\n\nProcess Dirty Returnables ")
+  processReturnablesGroup('Sucio', processDirty)
 
   LG("Completed all blocks")
 
@@ -231,6 +231,6 @@ def queueInstallReturnables(company):
   frappe.enqueue('returnable.returnable.doctype.returnable.returnable.install_returnables',
     company=company,
     is_async=True,
-    timeout=60000
+    timeout=240000
   )
   return "Enqueued"
