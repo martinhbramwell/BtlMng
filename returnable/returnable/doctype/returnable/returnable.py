@@ -10,23 +10,16 @@ import time
 
 from frappe.model.document import Document
 
-def LG(txt, end = "\n"):
-  filename = '/dev/shm/erpnext/result.log'
+NAME_COMPANY = ""
+ABBR_COMPANY = ""
+FULL_COMPANY = ""
+SUCIOS = ""
+LLENOS = ""
+ROTOS = ""
+ERRORS = ""
+EXISTING_LOCATIONS = ""
 
-  if os.path.exists(filename):
-    append_write = 'a' # append if already exists
-  else:
-    try:
-      os.makedirs('/dev/shm/erpnext')
-    except OSError as e:
-      if e.errno != errno.EEXIST:
-            raise
-    append_write = 'w' # make a new file if not
-
-  logfile = open(filename,append_write)
-  logfile.write(txt + end)
-  logfile.close()
-
+LOG_DIR = "/dev/shm/erpnext"
 
 def prepareGlobals(company):
   global NAME_COMPANY
@@ -43,13 +36,32 @@ def prepareGlobals(company):
   ABBR_COMPANY = theCompany.abbr
   FULL_COMPANY = "{} - {}".format(NAME_COMPANY, ABBR_COMPANY)
 
-
   SUCIOS = "Envases IB Sucios - {}".format(ABBR_COMPANY)
   LLENOS = "Envases IB Llenos - {}".format(ABBR_COMPANY)
   ROTOS = "Envases IB Rotos - {}".format(ABBR_COMPANY)
   ERRORS = "Envases Con Error"
 
   EXISTING_LOCATIONS = set({ SUCIOS, LLENOS, ROTOS })
+
+
+def LG(txt, end = "\n", logname = "{}/result.log".format(LOG_DIR)):
+  # logname = "/dev/shm/erpnext/result.log"
+  if os.path.exists(logname):
+    append_write = 'a' # append if already exists
+  else:
+    try:
+      if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
+    except OSError as e:
+      if e.errno != errno.EEXIST:
+            raise
+    append_write = 'w' # make a new file if not
+
+  logfile = open(logname,append_write)
+  logfile.write(txt + end)
+  logfile.close()
+
+
 
 
 class Returnable(Document):
@@ -68,6 +80,7 @@ def getQryReturnable(returnable = '%', state = '%', offset = 0, rows = 0):
        ;
   """.format(returnable, state, limit)
 
+
 def processSimple(list, name):
   LG("\n")
   numbers = []
@@ -78,10 +91,8 @@ def processSimple(list, name):
   LG("Create Stock Entry for : {}".format(numbers))
   createStockEntry(frappe._dict({ 'serial_numbers': numbers, 'warehouse_name': name}))
 
-
 def processFull(list):
   processSimple(list, LLENOS)
-
 
 def processDirty(list):
   processSimple(list, SUCIOS)
@@ -111,6 +122,8 @@ def createStockEntry(spec):
   stock_entry.save()
   stock_entry.submit()
 
+  LG("Commit: {}".format(spec.warehouse_name))
+  frappe.db.commit()
 
 
 def createStockEntryForCustomer(returnable, numbers):
@@ -197,9 +210,7 @@ def install_returnables(company):
   LG("Getting values for company :: {}".format(company))
   prepareGlobals(company)
 
-  LG("Company :: {}".format(NAME_COMPANY))
-
-  LG("\n\nCreate customer consignment warehouses")
+  LG("\n\nCreate {} customer consignment warehouses.".format(NAME_COMPANY))
   processReturnablesGroup('Donde Cliente', makeWarehouses)
 
   LG("\n\nProcess Customer Returnables")
@@ -216,9 +227,26 @@ def install_returnables(company):
   return "Installed Returnables";
 
 @frappe.whitelist()
+def se_count(company):
+  LG("+++++++++++++")
+  prepareGlobals(company)
+
+  data = frappe.db.sql("""SELECT count(*) FROM `tabStock Entry` se""", as_dict=0)
+  cnt = data[0][0]
+  # LG("-- {}".format(cnt), logname = "{}/notification.log".format(LOG_DIR))
+  
+  LG("{}".format(cnt), logname = "{}/notification.log".format(LOG_DIR))
+  LG("-- {}  | ".format(cnt))
+
+  return "{} Stock Entries".format(cnt);
+
+@frappe.whitelist()
 def tester(company):
   LG("Getting values for company :: {}".format(company))
   prepareGlobals(company)
+
+  data = frappe.db.sql("""SELECT count(*) FROM `tabStock Entry` se""", as_dict=0)
+  LG("{}".format(data))
 
   return "Test Complete"
 
