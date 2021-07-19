@@ -14,7 +14,6 @@ import re
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-
 from frappe.model.document import Document
 
 NAME_COMPANY = ""
@@ -56,7 +55,6 @@ def prepareGlobals(company):
     PERDIDOS = "Envases IB Perdidos - {}".format(ABBR_COMPANY)
 
     EXISTING_LOCATIONS = set({SUCIOS, LLENOS, ROTOS, ALERTAR, PERDIDOS})
-
 
 def LG(txt, end="\n", logname="{}/result.log".format(LOG_DIR)):
     # logname = "/dev/shm/erpnext/result.log"
@@ -106,8 +104,10 @@ def createStockEntry(spec):
     stock_entry.save()
     stock_entry.submit()
 
-    LG("Commit: {}".format(spec.warehouse_name))
+    LG("        Commit: {} ==> {}".format(spec.sn_block, spec.tgt))
     frappe.db.commit()
+
+    return stock_entry
 
 def makeWarehouse(name, parent_warehouse='Envases IB Custodia del Cliente', account='1.1.5.06 - Envases Custodiados'):
     whs_name = "{} - {}".format(name, ABBR_COMPANY)
@@ -159,7 +159,7 @@ def getBadDataLookupDict():
 
 def getBAPUCookie():
     cookie = ""
-    envars = Path("{}/../apps/returnable/envars.sh".format(os.getcwd())).resolve()
+    envars = Path("{}/../apps/electronic_invoice/install_scripts/envars.sh".format(os.getcwd())).resolve()
     with open(envars, 'r') as input:
        for line in input:
            if 'COOKIE_VAL' in line:
@@ -171,11 +171,17 @@ def getBAPUCookie():
     return cookie
 
 def getBottlesStatusFromBAPU(cookie):
+    # LG("==== Obtaining Bottles Status from BAPU  (PHPSESSID: {}) ====".format(cookie))
+    LG("==== Obtaining Bottles Status from BAPU ====")
     response = requests.get(BAPU_EP, headers={"Cookie": "PHPSESSID={}".format(cookie)})
-    print('.................  ::::   ==|==   ::::  ..................')
     time.sleep(2)
-    bottleList = response.json()
-    return bottleList['aaData']
+    # LG("Response {}".format(response))
+    respJSON = response.json()
+    # LG("Response JSON {}".format(respJSON))
+    bottleList = respJSON['aaData']
+    # LG("Bottle List {}".format(len(bottleList)))
+
+    return bottleList
 
 def prepareReferenceTables(bottlesStatusPage):
     fixLookUp = getBadDataLookupDict()
@@ -228,12 +234,10 @@ def createPurchaseOrder(spec):
         }]
     })
 
-    LG("-----")
-
     purchase_order.save()
     purchase_order.submit()
 
-    LG("Commit: {}".format(spec.warehouse_name))
+    LG("Commit block:{}".format(spec.order_confirmation_no))
     frappe.db.commit()
 
     return purchase_order
@@ -266,20 +270,21 @@ def createPurchaseReceipt(spec):
         }]
     }
 
-    print(body)
+    # print(body)
     purchase_receipt = frappe.get_doc(body)
 
-    LG("-----")
+    # LG("-----")
 
     purchase_receipt.save()
     purchase_receipt.submit()
 
-    LG("Commit: {}".format(spec.purchase_order))
+    LG("      Commit receipt of PO: {}".format(spec.purchase_order))
     frappe.db.commit()
 
     return purchase_receipt
 
 def generatePurchaseOrders(bottle_blocks):
+    LG("==== Generating Purchase Orders ====")
     purchase_orders = frappe._dict()
     idx = 0
     for block_id in bottle_blocks.keys():
@@ -289,7 +294,7 @@ def generatePurchaseOrders(bottle_blocks):
         creation = pseudoDate("2015-12-{} 15:52", idx, True, True)
         xaction = pseudoDate("2015-12-{} 15:52", idx, True, False)
         scheduled = pseudoDate("2016-01-{} 15:52", idx, True, False)
-        print("{} has {} entries. Created: {} Transaction: {} Scheduled: {}".format(block_id, item_count, creation, xaction, scheduled))
+        LG("      {} has {} entries. Created: {} Transaction: {} Scheduled: {}".format(block_id, item_count, creation, xaction, scheduled))
 
         purchase_order = frappe._dict()
         purchase_order['serial_numbers'] = bottle_blocks[block_id]
@@ -305,9 +310,11 @@ def generatePurchaseOrders(bottle_blocks):
 
         purchase_orders.setdefault(block_id, purchase_order)
 
+    LG("      Generated Purchase Orders")
     return purchase_orders
 
 def generatePurchaseReceipts(serial_number_blocks):
+    LG("==== Generating Purchase Receipts ====")
     all_purchase_orders = frappe.db.get_list('Purchase Order')
 
     purchase_receipts = frappe._dict()
@@ -329,8 +336,8 @@ def generatePurchaseReceipts(serial_number_blocks):
             quantity = serial_number_blocks[block_id].qty
             serial_no = serial_number_blocks[block_id].sns
 
-            print("PO #{}: {}/{} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, purchase_order_item, block_id, quantity))
-            print( "Creation: {}. Posting Date: {},  Time: {}.  Scheduled: {}".format(creation, posting_date, posting_time, scheduled))
+            LG("      PO #{}: {}/{} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, purchase_order_item, block_id, quantity))
+            # print( "Creation: {}. Posting Date: {},  Time: {}.  Scheduled: {}".format(creation, posting_date, posting_time, scheduled))
 
             purchase_receipt['pr'] = createPurchaseReceipt(frappe._dict({
             # createPurchaseReceipt(frappe._dict({
@@ -347,7 +354,21 @@ def generatePurchaseReceipts(serial_number_blocks):
 
         # purchase_receipts.setdefault(block_id, purchase_receipt)
 
+def relocateBottlesInternally(serial_number_blocks):
+    locations = [ROTOS, PERDIDOS, ALERTAR, LLENOS]
+    for location in locations:
+        transferBottles(location, serial_number_blocks)
+    LG("      Bottles Transferred")
+
+def instantiateWarehouseForEachCustomer(customers):
+    for customer_name in sorted(customers.keys()):
+        if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos"]:
+            location = makeWarehouse(customer_name.strip())
+            print("New stock location: >{}<".format(location))
+
+
 def getSerialNumbers(bottle_blocks):
+    LG("==== Collecting Serial Numbers ====")
     serial_number_blocks = frappe._dict()
     for block_id in bottle_blocks.keys():
         serial_numbers = frappe._dict()
@@ -405,118 +426,68 @@ def getSerialNumbers(bottle_blocks):
 
         # ['3086', 'IBEE089', 'A', 'cliente', '18', '17', 'Iridium Blue (Venta No Registrada)']
 
-        serial_numbers["sns"] = ", ".join(serial_no)
-
-        serial_numbers[PERDIDOS] = perdidos
-        serial_numbers[ALERTAR] = alertar
-        serial_numbers[ROTOS] = rotos
-        serial_numbers[SUCIOS] = sucios
-        serial_numbers[LLENOS] = llenos
-
-        serial_numbers["cliente"] = cliente
-
+        serial_numbers["sns"] = "\n".join(serial_no)
         serial_numbers["qty"] = len(serial_no)
 
+        serial_numbers[PERDIDOS] = frappe._dict({ "sns": "\n".join(perdidos), "qty": len(perdidos)})
+        serial_numbers[ALERTAR] = frappe._dict({ "sns": "\n".join(alertar), "qty": len(alertar)})
+        serial_numbers[ROTOS] = frappe._dict({ "sns": "\n".join(rotos), "qty": len(rotos)})
+        serial_numbers[SUCIOS] = frappe._dict({ "sns": "\n".join(sucios), "qty": len(sucios)})
+        serial_numbers[LLENOS] = frappe._dict({ "sns": "\n".join(llenos), "qty": len(llenos)})
+
+        serial_numbers["cliente"] = frappe._dict({ "sns": "\n".join(cliente), "qty": len(cliente)})
+
+        # serial_numbers[ALERTAR] = "\n".join(alertar)
+        # serial_numbers[ROTOS] = "\n".join(rotos)
+        # serial_numbers[SUCIOS] = "\n".join(sucios)
+        # serial_numbers[LLENOS] = "\n".join(llenos)
+
+        # serial_numbers["cliente"] = "\n".join(cliente)
+
+
         serial_number_blocks[block_id] = serial_numbers
+        LG("      Block {}: Perdidos {}, Alertar: {}, Rotos: {}, Sucios: {}, Llenos: {}".format(
+            block_id, len(perdidos), len(alertar), len(rotos), len(sucios), len(llenos)
+        ))
 
     return serial_number_blocks
 
 def transferBottles(target, serial_number_blocks):
+    LG("==== Transfer Bottles Block to {} ====".format(target))
     for block_id in serial_number_blocks:
-        bottles = serial_number_blocks[block_id][target]
-        qty = len(bottles)
+        bottle_block = serial_number_blocks[block_id][target]
+        bottles = bottle_block.sns
+        qty = bottle_block.qty
         if qty > 0:
-            print("Transferring {} ({}) to {}".format(block_id, qty, target))
+            LG("        Transferring {} ({}) to {}".format(block_id, qty, target))
+            LG("{}".format(bottles))
 
             spec = frappe._dict({
                 'sn_block': block_id,
                 'qty': qty,
                 'src': SUCIOS,
                 'tgt': target,
-                'serial_no': ", ".join(bottles)
+                'serial_no': bottles
             })
 
-            print("Spec: {}".format(spec))
             createStockEntry(spec)
 
-        sleep(2)
+        sleep(1)
+    LG("      Transferred")
 
-
-def updateSerialNumbersWithReceiptNumber(serial_number_blocks):
-    all_purchase_orders = frappe.db.get_list('Purchase Order')
-    for purchase_order in all_purchase_orders:
-        po = frappe.get_doc('Purchase Order', purchase_order)
-        block_id = po.order_confirmation_no
-        print("{} ==> {}".format(po.name, block_id))
-        sns = serial_number_blocks[block_id].sns
-        first = sns.split()[0].rstrip(",")
-        last = sns.split()[-1]
-
-        # print("{} -- >{}< | >{}<".format(block_id, first, last))
-
-        values = {'first': first, 'last': last, 'po_no': po.name}
-        data = frappe.db.sql("""
-            UPDATE `tabSerial No` tsn
-            SET purchase_document_no = %(po_no)s
-            WHERE name between %(first)s and %(last)s
-        """, values=values, as_dict=0)
-
-        data = frappe.db.sql("""
-            SELECT name, warehouse, purchase_document_no
-            FROM `tabSerial No` tsn
-            WHERE name between %(first)s and %(last)s
-        """, values=values, as_dict=0)
-
-        frappe.db.commit()
-        # print("Block: {} => {}".format(block_id, data))
-
-    # for block_id in bottle_blocks:
-    #     print("Block {} ==> {}".format(block_id, bottle_blocks[block_id]))
-
-@frappe.whitelist()
-def tester(company):
-    LG("Getting values for company :: {}".format(company))
-    prepareGlobals(company)
-
-    makeWarehouse("Envases IB Perdidos", parent_warehouse='Envases Iridium Blue', account='5.1.1.06 - Ajuste De Existencias')
-    makeWarehouse("Envases IB ALERTAR", parent_warehouse='Envases Iridium Blue', account='5.1.1.06 - Ajuste De Existencias')
-
-    bottlesStatusPage = getBottlesStatusFromBAPU(getBAPUCookie())
-    print(' *** *** *** ***  ', BAPU_EP, ' |<>|  Got', len(bottlesStatusPage), 'bottles.  *** *** *** *** *** ');
-
-    customers, bottle_blocks = prepareReferenceTables(bottlesStatusPage)
-
-    serial_number_blocks = getSerialNumbers(bottle_blocks)
-
-    # generatePurchaseOrders(bottle_blocks)
-
-    # generatePurchaseReceipts(serial_number_blocks)
-
-    # updateSerialNumbersWithReceiptNumber(serial_number_blocks)
-
-    # locations = [PERDIDOS, ALERTAR, ROTOS, LLENOS]
-    # for location in locations:
-    #     transferBottles(location, serial_number_blocks)
-
+def moveBottlesToCustomers(customers):
+    LG("\n\nPause to allow prior transactions to complete...")
+    sleep(60)
+    LG("\n\nReady to move bottles to customers...")
     for customer_name in sorted(customers.keys()):
-        if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos", "Luca Galeotti" ]:
-            location = makeWarehouse(customer_name.strip())
-            print("New stock location: >{}<".format(location))
-
-    frappe.db.commit()
-    sleep(5)
-
-    print("\n\nReady to move bottles to customers...")
-
-    for customer_name in sorted(customers.keys()):
-        if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos", "Luca Galeotti" ]:
+        if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos" ]:
             item_count = len(customers[customer_name])
             customer = frappe.get_doc('Customer', customer_name)
-            print("{} ({}) has {} entries.".format(customer_name, customer.gender, item_count))
+            # LG("{} ({}) has {} entries.".format(customer_name, customer.gender, item_count))
             bottles = []
             for bottle_block in customers[customer_name]:
                 bottles.append(bottle_block[1])
-                print("    Bottles {}.".format(bottles))
+                # LG("    Bottles {}.".format(bottles))
                 # print("    Bottles {}.".format(bottle_block))
 
             qty = len(bottles)
@@ -525,6 +496,7 @@ def tester(company):
                 body = {
                   "doctype": "Stock Entry",
                   "docstatus": 0,
+                  "naming_series": "MAT-STE-.YYYY.-",
                   "stock_entry_type": "Material Transfer",
                   "title": "Move {} bottles to {}".format(qty, location),
                   "items": [
@@ -538,39 +510,188 @@ def tester(company):
                   ]
                 }
 
-                print("----- {}".format(body))
+                LG("----- {}".format(body))
 
                 stock_entry = frappe.get_doc(body)
 
                 stock_entry.save()
                 stock_entry.submit()
 
-                LG("Commit: {}".format(location))
+                LG("Committing a {} bottle Stock Entry for {}".format(qty, location))
                 frappe.db.commit()
 
-            sleep(3)
+            sleep(1)
+
+@frappe.whitelist()
+def tester(company):
+    LG("Getting values for company :: {}".format(company))
+    prepareGlobals(company)
+    print("Starting Test")
+
+    idx = 15
+    creation = pseudoDate("2015-12-{} 15:52", idx, True, True)
+    xaction = pseudoDate("2015-12-{} 15:52", idx, True, False)
+    scheduled = pseudoDate("2016-01-{} 15:52", idx, True, False)
 
 
+    if ( 0 == 1 ):
+        po = createPurchaseOrder(frappe._dict({
+            'supplier': "Fabrica De Envases S. A. FADESA",
+            'order_confirmation_no': "IBXX5",
+            'creation': creation,
+            'transaction_date': xaction,
+            'schedule_date': scheduled,
+            'quantity': 10
+        }))
+    else:
+        po = frappe._dict({ "name": "PUR-ORD-2021-00022" })
 
-    # print("CLXX0 : {}".format(purchase_orders['CLXX0']))
-    # print("ALERTAR : {}".format(customers['ALERTAR']))
-    # print("Envases Rotos : {}".format(customers['Envases Rotos']))
-    # print("Envases Perdidos : {}".format(customers['Envases Perdidos']))
+    purchase_order = frappe.get_doc("Purchase Order", po.name)
 
-    LG("Ran quick test.")
-    # LG(data['iTotalDisplayRecords'])
-
-    return "Test Complete {}".format(str(int('5')).zfill(3))
+    print("PO: {} Line Item: {}".format(purchase_order.name, purchase_order.items[0].name))
 
 
-# @frappe.whitelist()
-# def installReturnables(company):
-#     return install_returnables(company)
+    if ( 0 == 1 ):
+        purchase_order_name = purchase_order.name
+        purchase_order_item = purchase_order.items[0].name
+        quantity = purchase_order.items[0].qty
+
+        dt = 15
+        creation = pseudoDate("2016-02-{} 16:59", dt, True, True)
+        posting_date = pseudoDate("2016-02-{} 16:59", dt, True, False)
+        posting_time = pseudoDate("2016-02-{} 16:59", dt, False, True)
+        schedule_date = pseudoDate("2016-02-{} 16:59", dt, True, False)
+
+        serial_no = "IBXX550\nIBXX551\nIBXX552\nIBXX553\nIBXX554\nIBXX555\nIBXX556\nIBXX557\nIBXX558\nIBXX559"
+
+        pr_spec = {
+            'creation': creation,
+            'posting_date': posting_date,
+            'posting_time': posting_time,
+            'supplier': "Fabrica De Envases S. A. FADESA",
+            'purchase_order': purchase_order_name,
+            'purchase_order_item': purchase_order_item,
+            'schedule_date': scheduled,
+            'quantity': quantity,
+            'serial_no': serial_no
+        }
+        print("PR: {}".format(pr_spec))
+
+        # pr = frappe._dict({ "name": "MAT-PRE-2021-00012" })
+        pr = createPurchaseReceipt(frappe._dict(pr_spec))
+
+        # print("PR: {}".format(pr))
+    else:
+        pr = frappe._dict({ "name": "MAT-PRE-2021-00016" })
+
+    purchase_receipt = frappe.get_doc("Purchase Receipt", pr.name)
+    # serial_numbers = purchase_receipt.items[0].serial_no
+    serial_numbers = [ "IBXX554", "IBXX555" ]
+    print("PR: {}".format(purchase_receipt.name))
+    print("Serial Numbers: \n{}".format(serial_numbers))
+
+    if ( 0 == 1 ):
+        # qty = purchase_receipt.items[0].qty
+        qty = 2
+        target = ROTOS
+        se_spec = frappe._dict({
+            'sn_block': SUCIOS,
+            'qty': qty,
+            'src': SUCIOS,
+            'tgt': target,
+            'serial_no': ", ".join(serial_numbers)
+        })
+        print("SE: {}".format(se_spec))
+
+        # se = frappe._dict({ "name": "MAT-STE-2021-00476" })
+        se = createStockEntry(se_spec)
+
+    else:
+        se = frappe._dict({ "name": "MAT-STE-2021-00478" })
+
+    stock_entry = frappe.get_doc("Stock Entry", se.name)
+    print("SE: {}".format(stock_entry.name))
+    print("Serial Numbers: \n{}".format(stock_entry.items[0].serial_no))
+
+    if ( 1 == 1 ):
+        # qty = purchase_receipt.items[0].qty
+        qty = 2
+        target = ALERTAR
+        se_spec = frappe._dict({
+            'sn_block': ROTOS,
+            'qty': qty,
+            'src': ROTOS,
+            'tgt': target,
+            'serial_no': ", ".join(serial_numbers)
+        })
+        print("SE: {}".format(se_spec))
+
+        # se = frappe._dict({ "name": "MAT-STE-2021-00476" })
+        se = createStockEntry(se_spec)
+
+    else:
+        se = frappe._dict({ "name": "MAT-STE-2021-00478" })
+
+    stock_entry = frappe.get_doc("Stock Entry", se.name)
+    print("SE: {}".format(stock_entry.name))
+    print("Serial Numbers: \n{}".format(stock_entry.items[0].serial_no))
 
 
-# @frappe.whitelist()
-# def queueInstallReturnables(company):
-#     frappe.enqueue(
-#         'returnable.returnable.doctype.returnable.returnable.install_returnables',
-#         company=company, is_async=True, timeout=240000)
-#     return "Enqueued"
+    print("Finished Test")
+
+@frappe.whitelist()
+def process(company):
+    LG("Getting values for company :: {}".format(company))
+    prepareGlobals(company)
+
+    # print(" Envars:: {} ".format(Path("{}/../apps/electronic_invoice/install_scripts/envars.sh".format(os.getcwd())).resolve()))
+    # print(getBAPUCookie())
+
+    bottlesStatusPage = getBottlesStatusFromBAPU(getBAPUCookie())
+    LG("    Page has {} bottles".format(len(bottlesStatusPage)))
+
+    customers, bottle_blocks = prepareReferenceTables(bottlesStatusPage)
+
+    instantiateWarehouseForEachCustomer(customers)
+
+    serial_number_blocks = getSerialNumbers(bottle_blocks)
+
+    generatePurchaseOrders(bottle_blocks)
+
+    generatePurchaseReceipts(serial_number_blocks)
+
+    relocateBottlesInternally(serial_number_blocks)
+
+    LG("Moving Customers bottles")
+    moveBottlesToCustomers(customers)
+
+    LG("Stock Initialization Complete.")
+
+    return "Stock Initialization Complete".format()
+
+
+@frappe.whitelist()
+def initializeStock(company):
+    return process(company)
+
+
+@frappe.whitelist()
+def queueInitializeStock(company):
+    frappe.enqueue(
+        'returnable.returnable.doctype.returnable.initialize_stock.process',
+        company=company, is_async=True, timeout=240000)
+    return "Enqueued"
+
+
+@frappe.whitelist()
+def se_count(company):
+    prepareGlobals(company)
+
+    data = frappe.db.sql("""SELECT count(*) FROM `tabStock Entry` se""", as_dict=0)
+    cnt = data[0][0]
+    # LG("-- {}".format(cnt), logname = "{}/notification.log".format(LOG_DIR))
+
+    LG("{}".format(cnt), logname="{}/notification.log".format(LOG_DIR))
+    LG("-- {}  | ".format(cnt))
+
+    return "{} Stock Entries".format(cnt)

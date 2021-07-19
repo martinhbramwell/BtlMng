@@ -40,6 +40,24 @@ fixtures = [
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
+# Document Events
+# ---------------
+# Hook on document methods and events
+
+doc_events = {
+    "Delivery Note": {
+        "validate": "returnable.hook_tasks.startStockEntry"
+    }
+}
+
+# doc_events = {
+#   "*": {
+#       "on_update": "method",
+#       "on_cancel": "method",
+#       "on_trash": "method"
+#   }
+# }
+
 # Home Pages
 # ----------
 
@@ -82,18 +100,6 @@ fixtures = [
 #
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
-
-# Document Events
-# ---------------
-# Hook on document methods and events
-
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-#	}
 # }
 
 # Scheduled Tasks

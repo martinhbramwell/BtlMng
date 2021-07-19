@@ -23,9 +23,9 @@ declare EP_NAME="";
 declare TGT="";
 
 PYTHON_FILE="${DOCTYPE}.initialize_stock";
-# EP_NAME="installReturnables";
-# EP_NAME="queueInstallReturnables";
-EP_NAME="tester";
+# EP_NAME="initializeStock";
+EP_NAME="queueInitializeStock";
+# EP_NAME="tester";
 
 TGT="/dev/shm/initialize_stock.html";
 
