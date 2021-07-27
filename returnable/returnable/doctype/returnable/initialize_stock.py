@@ -310,7 +310,7 @@ def generatePurchaseOrders(bottle_blocks):
 
         purchase_orders.setdefault(block_id, purchase_order)
 
-    LG("      Generated Purchase Orders")
+    LG("==== Generated Purchase Orders ====")
     return purchase_orders
 
 def generatePurchaseReceipts(serial_number_blocks):
@@ -322,43 +322,44 @@ def generatePurchaseReceipts(serial_number_blocks):
         purchase_receipt = frappe._dict()
         PurchaseOrder = frappe.get_doc('Purchase Order', po.name)
         po_seq = int(PurchaseOrder.name[13:18])
-        if po_seq != 88:
-            creation = pseudoDate("2016-01-{} 15:52", po_seq, True, True)
-            posting_date = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
-            posting_time = pseudoDate("2016-01-{} 16:59", po_seq, False, True)
-            supplier = "Fabrica De Envases S. A. FADESA"
 
-            purchase_order = PurchaseOrder.name
-            purchase_order_item = PurchaseOrder.items[0].name
-            scheduled = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
+        creation = pseudoDate("2016-01-{} 15:52", po_seq, True, True)
+        posting_date = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
+        posting_time = pseudoDate("2016-01-{} 16:59", po_seq, False, True)
+        supplier = "Fabrica De Envases S. A. FADESA"
 
-            block_id = PurchaseOrder.order_confirmation_no
-            quantity = serial_number_blocks[block_id].qty
-            serial_no = serial_number_blocks[block_id].sns
+        purchase_order = PurchaseOrder.name
+        purchase_order_item = PurchaseOrder.items[0].name
+        scheduled = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
 
-            LG("      PO #{}: {}/{} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, purchase_order_item, block_id, quantity))
-            # print( "Creation: {}. Posting Date: {},  Time: {}.  Scheduled: {}".format(creation, posting_date, posting_time, scheduled))
+        block_id = PurchaseOrder.order_confirmation_no
+        quantity = serial_number_blocks[block_id].qty
+        serial_no = serial_number_blocks[block_id].sns
 
-            purchase_receipt['pr'] = createPurchaseReceipt(frappe._dict({
-            # createPurchaseReceipt(frappe._dict({
-                'creation': creation,
-                'posting_date': posting_date,
-                'posting_time': posting_time,
-                'supplier': supplier,
-                'purchase_order': purchase_order,
-                'purchase_order_item': purchase_order_item,
-                'schedule_date': scheduled,
-                'quantity': quantity,
-                'serial_no': serial_no
-            }))
+        LG("      PO #{}: {}/{} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, purchase_order_item, block_id, quantity))
+        # print( "Creation: {}. Posting Date: {},  Time: {}.  Scheduled: {}".format(creation, posting_date, posting_time, scheduled))
 
-        # purchase_receipts.setdefault(block_id, purchase_receipt)
+        purchase_receipt['pr'] = createPurchaseReceipt(frappe._dict({
+            'creation': creation,
+            'posting_date': posting_date,
+            'posting_time': posting_time,
+            'supplier': supplier,
+            'purchase_order': purchase_order,
+            'purchase_order_item': purchase_order_item,
+            'schedule_date': scheduled,
+            'quantity': quantity,
+            'serial_no': serial_no
+        }))
+
+        purchase_receipts.setdefault(block_id, purchase_receipt)
+    LG("==== Generated Purchase Receipts ====")
 
 def relocateBottlesInternally(serial_number_blocks):
+    LG("==== Relocating Bottles Internally ====")
     locations = [ROTOS, PERDIDOS, ALERTAR, LLENOS]
     for location in locations:
         transferBottles(location, serial_number_blocks)
-    LG("      Bottles Transferred")
+    LG("==== Relocated Bottles Internally ====")
 
 def instantiateWarehouseForEachCustomer(customers):
     for customer_name in sorted(customers.keys()):
@@ -478,7 +479,7 @@ def transferBottles(target, serial_number_blocks):
 def moveBottlesToCustomers(customers):
     LG("\n\nPause to allow prior transactions to complete...")
     sleep(60)
-    LG("\n\nReady to move bottles to customers...")
+    LG("==== Relocating Bottles To Customer Consignment ====")
     for customer_name in sorted(customers.keys()):
         if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos" ]:
             item_count = len(customers[customer_name])
@@ -521,6 +522,7 @@ def moveBottlesToCustomers(customers):
                 frappe.db.commit()
 
             sleep(1)
+    LG("==== Relocated Bottles To Customer Consignment ====")
 
 @frappe.whitelist()
 def tester(company):
@@ -662,7 +664,6 @@ def process(company):
 
     relocateBottlesInternally(serial_number_blocks)
 
-    LG("Moving Customers bottles")
     moveBottlesToCustomers(customers)
 
     LG("Stock Initialization Complete.")
