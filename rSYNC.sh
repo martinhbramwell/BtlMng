@@ -11,7 +11,7 @@ export REMOTE_PROJECT="${SERVER_ALIAS}:/home/${ERP_USER}/${TARGET_BENCH_NAME}/ap
 
 echo -e "Synching this directory '$(pwd)' with :: ${REMOTE_PROJECT}";
 
-# exit;
+exit;
 
 while inotifywait -qqr -e close_write,move,create,delete ./*; do
   rsync -rzavx --update . ${REMOTE_PROJECT};
