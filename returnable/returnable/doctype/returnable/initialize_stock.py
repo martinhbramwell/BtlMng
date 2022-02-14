@@ -90,11 +90,17 @@ def createStockEntry(spec):
         {
           "qty": spec.qty,
           "item_code": "Envase de 5GL Iridium Blue",
+          "allow_zero_valuation_rate": 0,
+          "s_warehouse": spec.src,
+          "t_warehouse": spec.tgt
+        },  {
+          "qty": spec.qty,
+          "item_code": "FICHA - para envase IB de 5GL",
           "s_warehouse": spec.src,
           "t_warehouse": spec.tgt,
+          "allow_zero_valuation_rate": 1,
           "serial_no": spec.serial_no
-        }
-      ]
+        }]
     }
 
     print("----- {}".format(body))
@@ -113,7 +119,7 @@ def makeWarehouse(name, parent_warehouse='Envases IB Custodia del Cliente', acco
     whs_name = "{} - {}".format(name, ABBR_COMPANY)
     parent_whs = "{} - {}".format(parent_warehouse, ABBR_COMPANY)
     acct = "{} - {}".format(account, ABBR_COMPANY)
-    LG("Check if warehouse '{}' exists".format(whs_name))
+    LG("Check if the warehouse '{}' exists".format(whs_name))
     try:
         frappe.get_doc('Warehouse', whs_name)
     except:  # noqa
@@ -170,16 +176,28 @@ def getBAPUCookie():
 
     return cookie
 
+BOTTLE_LIST_FILE = "bottleList.json"
+BOTTLE_LIST = LOG_DIR + "/" + BOTTLE_LIST_FILE
 def getBottlesStatusFromBAPU(cookie):
-    # LG("==== Obtaining Bottles Status from BAPU  (PHPSESSID: {}) ====".format(cookie))
-    LG("==== Obtaining Bottles Status from BAPU ====")
-    response = requests.get(BAPU_EP, headers={"Cookie": "PHPSESSID={}".format(cookie)})
-    time.sleep(2)
-    # LG("Response {}".format(response))
-    respJSON = response.json()
-    # LG("Response JSON {}".format(respJSON))
-    bottleList = respJSON['aaData']
-    # LG("Bottle List {}".format(len(bottleList)))
+    bottleList = ""
+    if Path(BOTTLE_LIST).is_file():
+        LG(f"==== Loading Bottles Status from {BOTTLE_LIST} ====")
+        with open(BOTTLE_LIST) as f:
+           bottleList = json.load(f)
+
+    else:
+        # LG("==== Obtaining Bottles Status from BAPU  (PHPSESSID: {}) ====".format(cookie))
+        LG("==== Obtaining Bottles Status from BAPU ====")
+        response = requests.get(BAPU_EP, headers={"Cookie": "PHPSESSID={}".format(cookie)})
+        time.sleep(2)
+        # LG("Response {}".format(response))
+        respJSON = response.json()
+        # LG("Response JSON {}".format(respJSON))
+        bottleList = respJSON['aaData']
+        # LG("Bottle List {}".format(len(bottleList)))
+        with open(BOTTLE_LIST, 'w') as f:
+            json.dump(bottleList, f)
+
 
     return bottleList
 
@@ -189,6 +207,7 @@ def prepareReferenceTables(bottlesStatusPage):
     customers = frappe._dict()
     bottle_blocks = frappe._dict()
     for bottle in bottlesStatusPage:
+        # LG(f"Bottle :: {bottle}")
         if bottle[1][0:2] == "CL":
             bottle_group = "CLXX0"
         else:
@@ -231,6 +250,11 @@ def createPurchaseOrder(spec):
             "qty": spec.quantity,
             "rate": 8.04,
             "warehouse": "Envases IB Sucios - LSSA"
+        }, {
+            "item_code": "FICHA - para envase IB de 5GL",
+            "qty": spec.quantity,
+            "rate": 0,
+            "warehouse": "Envases IB Sucios - LSSA"
         }]
     })
 
@@ -243,6 +267,37 @@ def createPurchaseOrder(spec):
     return purchase_order
 
 def createPurchaseReceipt(spec):
+
+    itemModel = frappe._dict({
+        'docstatus': 0,
+        'item_code': None,
+        'qty': spec.quantity,
+        "rate": 0,
+        'received_stock_qty': spec.quantity,
+        'warehouse': 'Envases IB Sucios - LSSA',
+        'purchase_order': spec.purchase_order,
+        'purchase_order_item': None,
+        'allow_zero_valuation_rate': 0,
+        'schedule_date': spec.schedule_date,
+        'serial_no': None,
+        'include_exploded_items': 0,
+        'expense_account': '5.1.1.03 - Costos Sobre Ventas - LSSA'
+    })
+
+    items = []
+    for po_item in spec.purchase_order_items:
+        item = itemModel.copy()
+        item.item_code = po_item.item_code
+        item.purchase_order_item = po_item.name
+        if 'FICHA' in po_item.item_code:
+            item.serial_no = spec.serial_no
+            item.allow_zero_valuation_rate = 1
+        else:
+            item['rate'] = 8.04
+
+        # print(item)
+        items.append(item)
+
     body = {
         'doctype': 'Purchase Receipt',
         "creation": spec.creation,
@@ -254,26 +309,14 @@ def createPurchaseReceipt(spec):
         'supplier': spec.supplier,
         'set_warehouse': 'Envases IB Sucios - LSSA',
         'total_qty': spec.quantity,
-        'items': [{
-            'docstatus': 0,
-            'item_code': 'Envase de 5GL Iridium Blue',
-            'qty': spec.quantity,
-            "rate": 8.04,
-            'received_stock_qty': spec.quantity,
-            'warehouse': 'Envases IB Sucios - LSSA',
-            'purchase_order': spec.purchase_order,
-            'purchase_order_item': spec.purchase_order_item,
-            'schedule_date': spec.schedule_date,
-            'serial_no': spec.serial_no,
-            'include_exploded_items': 0,
-            'expense_account': '5.1.1.03 - Costos Sobre Ventas - LSSA'
-        }]
+        'items': items
     }
 
     # print(body)
+
     purchase_receipt = frappe.get_doc(body)
 
-    # LG("-----")
+    # # LG("-----")
 
     purchase_receipt.save()
     purchase_receipt.submit()
@@ -283,32 +326,50 @@ def createPurchaseReceipt(spec):
 
     return purchase_receipt
 
+def getExistingPurchaseOrders():
+    PO_tuple = frappe.db.get_list('Purchase Order',
+        fields=['order_confirmation_no'],
+        as_list=True
+    )
+
+    return [x for x, in PO_tuple]
+
 def generatePurchaseOrders(bottle_blocks):
     LG("==== Generating Purchase Orders ====")
+
+    POs = getExistingPurchaseOrders()
+    LG(f"POs :: {POs}")
+
     purchase_orders = frappe._dict()
     idx = 0
     for block_id in bottle_blocks.keys():
-        idx += 1
-        item_count = len(bottle_blocks[block_id])
+        if block_id in POs :
+            print(f"Found '{block_id}' in existing POs")
+        else:
 
-        creation = pseudoDate("2015-12-{} 15:52", idx, True, True)
-        xaction = pseudoDate("2015-12-{} 15:52", idx, True, False)
-        scheduled = pseudoDate("2016-01-{} 15:52", idx, True, False)
-        LG("      {} has {} entries. Created: {} Transaction: {} Scheduled: {}".format(block_id, item_count, creation, xaction, scheduled))
+            idx += 1
+            item_count = len(bottle_blocks[block_id])
 
-        purchase_order = frappe._dict()
-        purchase_order['serial_numbers'] = bottle_blocks[block_id]
+            LG(f"      {block_id} has {item_count} entries.")
 
-        purchase_order['po'] = createPurchaseOrder(frappe._dict({
-            'supplier': "Fabrica De Envases S. A. FADESA",
-            'order_confirmation_no': block_id,
-            'creation': creation,
-            'transaction_date': xaction,
-            'schedule_date': scheduled,
-            'quantity': item_count
-        }))
+            creation = pseudoDate("2015-12-{} 15:52", idx, True, True)
+            xaction = pseudoDate("2015-12-{} 15:52", idx, True, False)
+            scheduled = pseudoDate("2016-01-{} 15:52", idx, True, False)
+            LG("      {} has {} entries. Created: {} Transaction: {} Scheduled: {}".format(block_id, item_count, creation, xaction, scheduled))
 
-        purchase_orders.setdefault(block_id, purchase_order)
+            purchase_order = frappe._dict()
+            purchase_order['serial_numbers'] = bottle_blocks[block_id]
+
+            purchase_order['po'] = createPurchaseOrder(frappe._dict({
+                'supplier': "Fabrica De Envases S. A. FADESA",
+                'order_confirmation_no': block_id,
+                'creation': creation,
+                'transaction_date': xaction,
+                'schedule_date': scheduled,
+                'quantity': item_count
+            }))
+
+            purchase_orders.setdefault(block_id, purchase_order)
 
     LG("==== Generated Purchase Orders ====")
     return purchase_orders
@@ -329,14 +390,14 @@ def generatePurchaseReceipts(serial_number_blocks):
         supplier = "Fabrica De Envases S. A. FADESA"
 
         purchase_order = PurchaseOrder.name
-        purchase_order_item = PurchaseOrder.items[0].name
+        # purchase_order_item = PurchaseOrder.items[0].name
         scheduled = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
 
         block_id = PurchaseOrder.order_confirmation_no
         quantity = serial_number_blocks[block_id].qty
         serial_no = serial_number_blocks[block_id].sns
 
-        LG("      PO #{}: {}/{} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, purchase_order_item, block_id, quantity))
+        LG("      PO #{}: {} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, block_id, quantity))
         # print( "Creation: {}. Posting Date: {},  Time: {}.  Scheduled: {}".format(creation, posting_date, posting_time, scheduled))
 
         purchase_receipt['pr'] = createPurchaseReceipt(frappe._dict({
@@ -345,7 +406,7 @@ def generatePurchaseReceipts(serial_number_blocks):
             'posting_time': posting_time,
             'supplier': supplier,
             'purchase_order': purchase_order,
-            'purchase_order_item': purchase_order_item,
+            'purchase_order_items': PurchaseOrder.items,
             'schedule_date': scheduled,
             'quantity': quantity,
             'serial_no': serial_no
@@ -505,10 +566,16 @@ def moveBottlesToCustomers(customers):
                       "qty": qty,
                       "item_code": "Envase de 5GL Iridium Blue",
                       "s_warehouse": SUCIOS,
-                      "t_warehouse": location,
-                      "serial_no": ", ".join(bottles)
-                    }
-                  ]
+                      "allow_zero_valuation_rate": 0,
+                      "t_warehouse": location
+                    }, {
+                      "qty": qty,
+                      "item_code": "FICHA - para envase IB de 5GL",
+                      "s_warehouse": SUCIOS,
+                      "allow_zero_valuation_rate": 1,
+                      "serial_no": ", ".join(bottles),
+                      "t_warehouse": location
+                    }]
                 }
 
                 LG("----- {}".format(body))
@@ -650,15 +717,16 @@ def process(company):
     # print(getBAPUCookie())
 
     bottlesStatusPage = getBottlesStatusFromBAPU(getBAPUCookie())
-    LG("    Page has {} bottles".format(len(bottlesStatusPage)))
+    LG("    Bottles status page has {} bottles".format(len(bottlesStatusPage)))
+    # print(f"Bottles status page :: {bottlesStatusPage}")
 
     customers, bottle_blocks = prepareReferenceTables(bottlesStatusPage)
+    serial_number_blocks = getSerialNumbers(bottle_blocks)
 
     instantiateWarehouseForEachCustomer(customers)
 
-    serial_number_blocks = getSerialNumbers(bottle_blocks)
-
-    generatePurchaseOrders(bottle_blocks)
+    purchase_orders = generatePurchaseOrders(bottle_blocks)
+    LG(f"Purchase Orders :: {purchase_orders}")
 
     generatePurchaseReceipts(serial_number_blocks)
 

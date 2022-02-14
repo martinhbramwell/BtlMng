@@ -1,1 +1,1 @@
-../FacElect/install_scripts/envars.sh
+/opt/docTypeHandlers/envars/envars_erp_logichem_solutions.sh
