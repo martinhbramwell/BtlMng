@@ -12,7 +12,7 @@ app_email = "mhb.warehouseman@gmail.com"
 app_license = "MIT"
 
 fixtures = [
-  { "dt": "Custom Field", "filters": [["fieldname", "in", ("returnables", "holdings")]]}
+  { "dt": "Custom Field", "filters": [["fieldname", "in", ("returnables", "holdings", "accompaniment", "requires_accompaniment", "column_break_acc", "required_accompaniment")]]}
 ]
 
 
