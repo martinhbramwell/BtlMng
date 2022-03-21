@@ -1,0 +1,78 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2022-03-17 11:09:53.409947",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "serial_numbers",
+  "valid_sn",
+  "customer_returnables",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_returnables",
+   "fieldtype": "Table",
+   "label": "Customer Returnables",
+   "options": "Consigned Returnable"
+  },
+  {
+   "fieldname": "serial_numbers",
+   "fieldtype": "Text",
+   "label": "Serial Numbers"
+  },
+  {
+   "fieldname": "valid_sn",
+   "fieldtype": "Small Text",
+   "label": "Valid SN"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Series",
+   "no_copy": 1,
+   "options": "RET-BAT-.YYYY.-",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Serialized Batch Returns",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2022-03-21 07:30:48.712678",
+ "modified_by": "Administrator",
+ "module": "Returnable",
+ "name": "Serialized Batch Returns",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}
