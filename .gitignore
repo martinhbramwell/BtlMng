@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Cypress stuff
+cypress/node_modules/
+cypress/cypress/videos/
+cypress/cypress/fixtures/example.json
+
 # C extensions
 *.so
 

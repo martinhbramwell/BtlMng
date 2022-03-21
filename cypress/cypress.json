@@ -1,0 +1,9 @@
+{
+  "animationDistanceThreshold": 5,
+  "baseUrl": "https://erp.logichem.solutions",
+  "experimentalSessionSupport": true,
+  "viewportHeight": 1200,
+  "cypress-watch-and-reload": {
+    "watch": "/home/hasan/projects/BtlMng/returnable/returnable/doctype/serialized_batch_returns/*"
+  }
+}
