@@ -43,7 +43,7 @@
 
 // const getRouteCustomersExistingReturnables = () => {
 //     const { delivery_trip } = this.frm.doc;
-//     const method = "returnable.returnable.doctype.serialized_batch_returns.serialized_batch_returns.getRouteCustomersExistingReturnables";
+//     const method = "returnable.returnable.doctype.returnables_batch_transfers.returnables_batch_transfers.getRouteCustomersExistingReturnables";
 // 		frappe.call({ method,
 //         args: { delivery_trip },
 //         callback: resp => fillCustomerReturnablesChildTable(resp)
@@ -145,7 +145,7 @@ const prepare_globals = (event) => {
 
     doc.allSerialNumbers = "";
     doc.old_valid_sn = "";
-    const method = "returnable.returnable.doctype.serialized_batch_returns.serialized_batch_returns.getAllSerialNumbers";
+    const method = "returnable.returnable.doctype.returnables_batch_transfers.returnables_batch_transfers.getAllSerialNumbers";
         frappe.call({ method,
         args: {},
         callback: resp => {
