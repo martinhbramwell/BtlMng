@@ -2,7 +2,7 @@
 
 import 'cypress-real-events/support'
 
-describe('Test Serialized Batch Returns', () => {
+describe('Test Returnables Batch Transfers', () => {
   const login = () => {
     cy.session(`Administrator`, () => {
       cy.visit('login#email')
@@ -35,13 +35,21 @@ describe('Test Serialized Batch Returns', () => {
   it('Supplies Delivery Trip ID', () => {   // 
     // cy.login(`Administrator`)
     cy.wait(500)
-    cy.visit('app/serialized-batch-returns/RET-BAT-2022-00005')
-    cy.get('.primary-action').click()
-    cy.get('.modal-footer > .standard-actions > .btn-primary').click()
 
-    // cy.get('[data-target="Delivery Trip"]').type(`MAT-DT-2022-00001`)
+    cy.visit('app/returnables-batch-transfers/RET-BAT-2022-00002')
+    // cy.get('.primary-action').click()
+    // cy.get('.modal-footer > .standard-actions > .btn-primary').click()
+
     // cy.get('div.ql-editor.ql-blank').type(`Comment`)
-    // cy.get('[data-fieldname="serial_number"]').type(`IBAA480`).realPress('Tab')
+
+
+    // cy.get(':nth-child(4) > .section-body > .form-column > form > .frappe-control > .form-group > .control-input-wrapper > .control-input > .input-with-feedback')
+    cy.get('textarea[data-fieldname="serial_numbers"]')
+      .type(`{moveToEnd}           IBAA480`)
+
+    cy.get('input[data-target="Delivery Trip"]').type(`MAT-DT-2022-00001`)
+      .realPress('Tab')
+      
     // cy.get('[data-fieldname="customer"]').type(`IBAA480`).realPress('Tab')
   })
 

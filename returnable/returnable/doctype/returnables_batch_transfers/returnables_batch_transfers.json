@@ -8,10 +8,20 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
-  "serial_numbers",
+  "direction",
+  "delivery_trip_section",
+  "delivery_trip",
+  "anom_column",
+  "anomalies",
+  "valid_serial_numbers_section",
   "valid_sn",
+  "input_serial_numbers_section",
+  "serial_numbers",
+  "section_break_7",
   "customer_returnables",
-  "amended_from"
+  "amended_from",
+  "route_consignment_locations",
+  "repaintcntr"
  ],
  "fields": [
   {
@@ -22,7 +32,7 @@
   },
   {
    "fieldname": "serial_numbers",
-   "fieldtype": "Text",
+   "fieldtype": "Small Text",
    "label": "Serial Numbers"
   },
   {
@@ -33,12 +43,12 @@
   {
    "fieldname": "naming_series",
    "fieldtype": "Select",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Series",
    "no_copy": 1,
    "options": "RET-BAT-.YYYY.-",
    "print_hide": 1,
-   "reqd": 1,
    "set_only_once": 1
   },
   {
@@ -46,18 +56,80 @@
    "fieldtype": "Link",
    "label": "Amended From",
    "no_copy": 1,
-   "options": "Serialized Batch Returns",
+   "options": "Returnables Batch Transfers",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "label": "Direction",
+   "options": "Cliente >> Sucios\nSucios >> Llenos"
+  },
+  {
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldname": "delivery_trip",
+   "fieldtype": "Link",
+   "label": "Delivery Trip",
+   "options": "Delivery Trip"
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval: false",
+   "fieldname": "valid_serial_numbers_section",
+   "fieldtype": "Section Break",
+   "label": "Validated Serial Numbers"
+  },
+  {
+   "fieldname": "section_break_7",
+   "fieldtype": "Section Break"
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:true\n",
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldname": "delivery_trip_section",
+   "fieldtype": "Section Break",
+   "label": "Delivery Trip"
+  },
+  {
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldname": "anomalies",
+   "fieldtype": "Small Text",
+   "label": "Anomalies"
+  },
+  {
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldname": "anom_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "input_serial_numbers_section",
+   "fieldtype": "Section Break",
+   "label": "Input Serial Numbers"
+  },
+  {
+   "default": "None",
+   "fieldname": "route_consignment_locations",
+   "fieldtype": "Text",
+   "hidden": 1,
+   "label": "Route Consignment Locations"
+  },
+  {
+   "default": "0",
+   "fieldname": "repaintcntr",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "rePaintCntr"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2022-03-21 07:30:48.712678",
+ "modified": "2022-03-27 06:35:01.538590",
  "modified_by": "Administrator",
  "module": "Returnable",
- "name": "Serialized Batch Returns",
+ "name": "Returnables Batch Transfers",
  "owner": "Administrator",
  "permissions": [
   {

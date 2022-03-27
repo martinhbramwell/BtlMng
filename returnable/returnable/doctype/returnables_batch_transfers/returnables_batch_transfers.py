@@ -5,10 +5,16 @@ import json
 import frappe
 from frappe.model.document import Document
 
-class SerializedBatchReturns(Document):
+class ReturnablesBatchTransfers(Document):
 	def before_submit(self):
+		clean = []
 		report = """"""
 		sep = """\n"""
+		for rtbl in self.customer_returnables:
+			if (rtbl.selected):
+				clean.append(rtbl)
+
+		self.customer_returnables = clean
 		for rtbl in self.customer_returnables:
 			report += f"""{sep}{rtbl.serial_number} : {rtbl.consignment} : {rtbl.selected}"""
 
@@ -25,6 +31,19 @@ def orderBySerialNumber(customerSerialNumbers):
       customerOfSerialNumber.append({ "serial_number": serial_number, "customer": customerName })
 
   customerOfSerialNumber.sort(key=lambda entry: entry["serial_number"])
+  return customerOfSerialNumber
+
+def convertToDictionary(customerSerialNumbers):
+  customerOfSerialNumber = {}
+  for customer in customerSerialNumbers:
+    customerName = customer["customer"]
+    # print(customerName)
+    for serial_number in customer["serial_nos"]:
+      # print(serial_number)
+      customerOfSerialNumber[serial_number] = customerName
+      # customerOfSerialNumber.append({ "serial_number": serial_number, "customer": customerName })
+
+  # customerOfSerialNumber.sort(key=lambda entry: entry["serial_number"])
   return customerOfSerialNumber
 
 def getCustomerReturnables(stop):
@@ -47,8 +66,12 @@ def getRouteCustomersExistingReturnables(delivery_trip):
 	# print(type(trip.delivery_stops))
 	# print(trip.delivery_stops[0].customer)
 	customer_returnables = [ getCustomerReturnables(stop) for stop in trip.delivery_stops ]
-	customerOfSerialNumber = orderBySerialNumber(customer_returnables)
-	# print(json.dumps(customerOfSerialNumber, indent=4, sort_keys=True))
+	# customerOfSerialNumber = {}
+	# for sn in customer_returnables:
+	# 	print(json.dumps(sn, indent=4))
+	# 	customerOfSerialNumber[sn.serial_number] = sn.customer
+	customerOfSerialNumber = convertToDictionary(customer_returnables)
+	print(json.dumps(customerOfSerialNumber, indent=4, sort_keys=True))
 
 	return customerOfSerialNumber
 

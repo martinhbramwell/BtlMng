@@ -4,7 +4,7 @@
 # import frappe
 import unittest
 
-class TestSerializedBatchReturns(unittest.TestCase):
+class TestReturnablesBatchTransfers(unittest.TestCase):
 
 	def setUp(self):
 		frappe.set_user("Administrator")
@@ -13,5 +13,5 @@ class TestSerializedBatchReturns(unittest.TestCase):
 		frappe.set_user("Administrator")
 
 	def minimal(self):
-		# doc = frappe.get_doc("Serialized Batch Returns", frappe.db.get_value("Event", {"subject":"_Test Event 1"}))
+		# doc = frappe.get_doc("Returnables Batch Transfers", frappe.db.get_value("Event", {"subject":"_Test Event 1"}))
 		self.assertTrue( 0 == 0 )
