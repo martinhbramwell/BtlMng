@@ -5,20 +5,83 @@ import json
 import frappe
 from frappe.model.document import Document
 
+
+stock_entry_start = """{
+	"stock_entry_type": "Material Transfer",
+	"items": [
+"""
+
+stock_entry_end = """{
+    ]
+}
+"""
+
+
 class ReturnablesBatchTransfers(Document):
 	def before_submit(self):
-		clean = []
+		print(f"""<<<<<<<<<< before submit >>>>>>>>\n{self.direction}""")
+
+		company = frappe.db.get_single_value('Global Defaults', 'default_company')
+		defaults = frappe.db.get_value('Company', company, ['envases_sucios', 'envases_llenos'], as_dict=1)
+		sqlSucioLlenoLocations = f"""
+			SELECT W.name, if(W.account = '{defaults.envases_sucios}', "Cliente >> Sucios", "Sucios >> Llenos") as direction
+			  FROM `tabWarehouse` W
+			 WHERE W.parent_warehouse = 'Envases Iridium Blue - LSSA'
+			   AND W.account IN (
+			         '{defaults.envases_llenos}'
+			       , '{defaults.envases_sucios}'
+			   )
+	  """
+
+		dictSucioLlenoLocations = frappe.db.sql(sqlSucioLlenoLocations, as_dict=1)
+		directionLookUp = {}
+		for location in dictSucioLlenoLocations:
+			directionLookUp[location.direction] = location.name
+
+		validTransfers = frappe._dict({})
 		report = """"""
 		sep = """\n"""
 		for rtbl in self.customer_returnables:
 			if (rtbl.selected):
-				clean.append(rtbl)
+				if rtbl.consignment in validTransfers:
+					validTransfers[rtbl.consignment].SNs = validTransfers[rtbl.consignment]['SNs'] + "\n" + rtbl.serial_number
+				else:
+					validTransfers[rtbl.consignment] = frappe._dict({ 'SNs': "", 'count': 0 })
+					validTransfers[rtbl.consignment].SNs = rtbl.serial_number
 
-		self.customer_returnables = clean
-		for rtbl in self.customer_returnables:
-			report += f"""{sep}{rtbl.serial_number} : {rtbl.consignment} : {rtbl.selected}"""
+				validTransfers[rtbl.consignment].count += 1
 
-		frappe.throw(f"""\n\n\n ### customer_returnables: {report}\n* * * SERVERSIDE CURTAILED * * * """)
+		stock_entry = frappe.get_doc({
+		  'doctype': 'Stock Entry',
+		  'docstatus': 0,
+		  'stock_entry_type': 'Material Transfer'
+		})
+
+		items = []
+		for source in validTransfers:
+			stock_entry.append('items', {
+			  's_warehouse': source,
+			  't_warehouse': directionLookUp[self.direction],
+			  'item_code': "FICHA - para envase IB de 5GL",
+			  'serial_no': validTransfers[source].SNs,
+			  'qty': validTransfers[source].count
+			})
+			# stock_entry_item = {
+   #      's_warehouse': source,
+   #      't_warehouse': directionLookUp[self.direction],
+   #      'item_code': "FICHA - para envase IB de 5GL",
+   #      'serial_no': validTransfers[source].SNs,
+   #      'qty': validTransfers[source].count
+			# }
+			# items.append(stock_entry_item)
+			print(f"Transfer {validTransfers[source]['count']} ({validTransfers[source]['SNs']}) from {source} to {directionLookUp[self.direction]}")
+
+		# stock_entry.append('items', items)
+		stock_entry.save()
+		stock_entry.submit()
+
+		# # frappe.throw(f"""\n\n\n ### customer_returnables: {stock_entry}\n* * * SERVERSIDE CURTAILED * * * """)
+		# frappe.throw(f"""\n\n\n ### customer_returnables: \n{print(json.dumps(stock_entry, indent=4))}\n* * * SERVERSIDE CURTAILED * * * """)
 
 
 def orderBySerialNumber(customerSerialNumbers):
@@ -81,12 +144,13 @@ sqlStorageLocation = """
 	ON W.name = S.warehouse
 """
 
-sqlConsignmentGroup = """
+regex = r'[^0-9a-zA-Z\s ]'
+sqlConsignmentGroup = f"""
 	SELECT W.parent_warehouse
 	FROM `tabWarehouse` W 
-	WHERE UPPER(REGEXP_REPLACE(REGEXP_REPLACE(concat(W.name), '[[:space:]]', ''), '[^0-9a-zA-Z\s ]', ''))
+	WHERE UPPER(REGEXP_REPLACE(REGEXP_REPLACE(concat(W.name), '[[:space:]]', ''), '{regex}', ''))
 	IN (
-	   SELECT UPPER(REGEXP_REPLACE(REGEXP_REPLACE(concat(C.name, ' - ', C.abbr), '[[:space:]]', ''), '[^0-9a-zA-Z\s ]', ''))
+	   SELECT UPPER(REGEXP_REPLACE(REGEXP_REPLACE(concat(C.name, ' - ', C.abbr), '[[:space:]]', ''), '{regex}', ''))
 	   FROM `tabCompany` C LEFT JOIN `tabSingles` S ON S.value = C.name 
 	   WHERE doctype = "Global Defaults" and field = "default_company"
 	);
@@ -97,9 +161,11 @@ sqlConsignmentGroup = """
 @frappe.whitelist()
 def getAllSerialNumbers():
 	print("%%%%%%%%%%%%%%%% getAllSerialNumbers %%%%%%%%%%%%%%")
+
 	objSerialNumbers = {};
 	arySerial_numbers = frappe.db.sql(sqlStorageLocation, as_dict=0)
 	parentLocation = frappe.db.sql(sqlConsignmentGroup, as_dict=0)[0][0]
+	print(f"%%%%%% {parentLocation} %%%%%%%%")
 	for row in arySerial_numbers:
 		# print(f" -- {row[0]} ")
 		objSerialNumbers[row[0]] = { "warehouse": row[1], "parent_warehouse": row[2] }

@@ -1,5 +1,5 @@
-// // Copyright (c) 2022, Warehouseman and contributors
-// // For license information, please see license.txt
+// Copyright (c) 2022, Warehouseman and contributors
+// For license information, please see license.txt
 
 
 const emptyStore = {
@@ -12,26 +12,30 @@ const emptyStore = {
 const unStore = () => {
     const method = "unStore";
     console.log(`########################## -->| ${method}: ${this.frm.docname} |<-- ############################`);
+    return;
+
     let LS = null;
     if (localStorage[this.frm.docname]) {
         LS = JSON.parse(localStorage[this.frm.docname]);
     } else {
         LS = emptyStore;
     }
-    this.frm.doc.route_consignment_locations = LS.route_consignment_locations;
-    this.frm.doc.AllSerialNumbers = LS.AllSerialNumbers;
+    this.frm.route_consignment_locations = LS.route_consignment_locations;
+    this.frm.AllSerialNumbers = LS.AllSerialNumbers;
 }
 
 const store = () => {
     const method = "store";
     console.log(`########################## -->| ${method}: ${this.frm.docname} |<-- ############################`);
-    console.log('this.frm.doc.route_consignment_locations');
-    console.dir(this.frm.doc.route_consignment_locations);
+    return;
+
+    console.log('this.frm.route_consignment_locations');
+    console.dir(this.frm.route_consignment_locations);
     localStorage.setItem(
         this.frm.docname,
         JSON.stringify({
-            "AllSerialNumbers" : this.frm.doc.AllSerialNumbers,
-            "route_consignment_locations": this.frm.doc.route_consignment_locations
+            "AllSerialNumbers" : this.frm.AllSerialNumbers,
+            "route_consignment_locations": this.frm.route_consignment_locations
         }, null, 2)
     );
 }
@@ -39,32 +43,41 @@ const store = () => {
 const after_save = () => {
     const event = "after_save";
     console.log(`########################## -->| ${event} |<-- ############################`);
+    this.frm.events.repaintcntr(event);
+    return;
+
     let old_name = localStorage["oldDocName"];
     const LS = JSON.parse(localStorage[old_name]);
     // delete localStorage[old_name];
 
     localStorage.setItem(this.frm.docname, JSON.stringify(LS, null, 2));
     localStorage.setItem("oldDocName", this.frm.docname);
-    console.log('this.frm.doc.route_consignment_locations');
-    console.dir(this.frm.doc.route_consignment_locations);
+    console.log('this.frm.route_consignment_locations');
+    console.dir(this.frm.route_consignment_locations);
 
+    console.log(`  ||| TEST: ${this.frm.testicle}`);
     prepare_globals(event);
 };
 
 const before_save = () => {
     const event = "before_save";
     console.log(`########################## -->| ${event} |<-- ############################ ${this.frm.docname}`);
-    console.dir(this.frm.doc.route_consignment_locations)
+    return;
+
+    console.log(`  /// TEST: ${this.frm.testicle}`);
+    console.dir(this.frm.route_consignment_locations);
+
+
 
     store();
     localStorage.setItem("oldDocName", this.frm.docname);
 
-    this.frm.doc.route_consignment_locations = "";
+    this.frm.route_consignment_locations = "";
 };
 
 const before_submit = () => {
     store();
-    this.frm.doc.route_consignment_locations = "";
+    this.frm.route_consignment_locations = "";
     // const msg = ` * * * CURTAILED * * * `;
     // console.log("*******************>|<*******************");
     // frappe.msgprint(__(`${msg}`));
@@ -78,7 +91,8 @@ const fillCustomerReturnablesChildTable = (event) => {
     unStore();
     const { frm } = this;
     const { doc } = frm;
-    let { customer_returnables, route_consignment_locations } = doc;
+    let { route_consignment_locations } = frm;
+    let { customer_returnables } = doc;
 
     console.log(`fillCustomerReturnablesChildTable ==> Context: `);
     console.dir(route_consignment_locations);
@@ -121,7 +135,7 @@ const getRouteCustomersExistingReturnables = (event) => {
     console.log(`##########################->| ${method} |<-###############################`);
     const { frm } = this;
     const { doc } = frm;
-    let { delivery_trip, route_consignment_locations } = doc;
+    let { delivery_trip } = doc;
 
     if (delivery_trip) {
         console.log("Calling server >>>>>>>>>>>>>>");
@@ -129,10 +143,10 @@ const getRouteCustomersExistingReturnables = (event) => {
     		frappe.call({ method,
             args: { delivery_trip },
             callback: resp => {
-                this.frm.doc.route_consignment_locations = resp.message;
+                frm.route_consignment_locations = resp.message;
 
-                console.log(`<<<  doc.route_consignment_locations >>>`)
-                console.dir(doc.route_consignment_locations);
+                console.log(`<<<  route_consignment_locations >>>`)
+                console.dir(frm.route_consignment_locations);
 
                 store();
                 fillCustomerReturnablesChildTable(event)
@@ -146,18 +160,27 @@ const getRouteCustomersExistingReturnables = (event) => {
             frm.is_anomaly[idx] = false;
         }
         frm.refresh_field('anomalies');
-        route_consignment_locations = "None";
+        frm.route_consignment_locations = "None";
 
         store();
-        fillCustomerReturnablesChildTable(event)
+        fillCustomerReturnablesChildTable(event);
     }
 };
 
-const rePaintChildTable = () => {
+const rePaintChildTable = (event) => {
+    const method = "rePaintChildTable";
+    console.log(`########################## -->| ${method}: ${event} |<-- ############################`);
+    if (event === "after_save") {
+        this.frm.doc.serial_numbers += ",";
+        this.frm.refresh_field('serial_numbers');
+        console.log(this.frm.doc.serial_numbers);
+    }
+
     const { frm } = this;
     const { doc, is_wrong, is_anomaly } = frm;
     const { direction } = doc;
 
+    frm.refresh_field('serial_numbers');
     for ( let idx = 0; idx < frm.is_wrong.length; idx += 1) {
         let { consignment } = doc.customer_returnables[idx];
         const row = frm.fields_dict.customer_returnables.grid.grid_rows[idx];
@@ -172,8 +195,8 @@ const rePaintChildTable = () => {
         doc.customer_returnables[idx].location = `<p style='color:${color};'>${consignment}</p>`
         doc.customer_returnables[idx].selected = selected;
 
-        row.select(selected);
-        row.refresh_check();
+        this.frm.fields_dict.customer_returnables.grid.grid_rows[idx].select(selected);
+        this.frm.fields_dict.customer_returnables.grid.grid_rows[idx].refresh_check();
     }
     frm.refresh_field('customer_returnables');
 };
@@ -191,7 +214,9 @@ const serial_numbers = (event) => {
     const { frm } = this;
     const { doc } = frm;
 
-    const { AllSerialNumbers, serial_numbers, direction } = doc;
+    const { serial_numbers, direction } = doc;
+
+    let { AllSerialNumbers } = frm;
     const { custody_group, lookup } = AllSerialNumbers;
 
     frm.is_anomaly = [];
@@ -258,13 +283,17 @@ const prepare_globals = (event) => {
 
     const { frm } = this;
     const { doc } = frm;
-    const { route_consignment_locations, AllSerialNumbers } = doc;
+    let { AllSerialNumbers, route_consignment_locations } = frm;
+
+    console.log(`  $$$ TEST: ${frm.testicle}`);
 
     console.log("route_consignment_locations")
     console.dir(route_consignment_locations)
 
     console.log("AllSerialNumbers")
     console.dir(AllSerialNumbers)
+
+    frm.testicle = "ball";
 
     if (  ! frm.is_anomaly ) {
         frm.is_anomaly = [];
@@ -278,22 +307,21 @@ const prepare_globals = (event) => {
     console.log("prepare_globals: frm.is_wrong")
     console.dir(frm.is_wrong)
 
-    doc.AllSerialNumbers = "";
+    frm.AllSerialNumbers = "";
     doc.old_valid_sn = "";
 
     const method = "returnable.returnable.doctype.returnables_batch_transfers.returnables_batch_transfers.getAllSerialNumbers";
         frappe.call({ method,
         args: {},
         callback: resp => {
-            doc.AllSerialNumbers = resp.message;
-            doc.route_consignment_locations = route_consignment_locations;  // so store() does not lose it.
+            frm.AllSerialNumbers = resp.message;
             // localStorage.setItem("AllSerialNumbers", AllSerialNumbers);
             // console.dir(this)
-            // console.log("doc.AllSerialNumbers");
-            // console.dir(doc.AllSerialNumbers);
+            // console.log("frm.AllSerialNumbers");
+            // console.dir(frm.AllSerialNumbers);
 
-            // console.log("route_consignment_locations")
-            // console.dir(route_consignment_locations)
+            console.log("route_consignment_locations")
+            console.dir(route_consignment_locations)
             store();
 
             serial_numbers(event);
@@ -327,10 +355,10 @@ const direction = () => {
     serial_numbers(event)
 };
 
-const repaintcntr = () => {
-    const event = "repaintcntr";
-    console.log(`########################## -->| ${event} |<-- ############################ ${this.frm.docname}`);
-    rePaintChildTable()
+const repaintcntr = (event) => {
+    const method = "repaintcntr";
+    console.log(`########################## -->| ${method}: ${event} |<-- ############################`);
+    rePaintChildTable(event)
 };
 
 frappe.ui.form.on('Returnables Batch Transfers', {

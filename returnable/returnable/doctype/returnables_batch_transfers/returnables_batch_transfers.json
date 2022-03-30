@@ -20,7 +20,6 @@
   "section_break_7",
   "customer_returnables",
   "amended_from",
-  "route_consignment_locations",
   "repaintcntr"
  ],
  "fields": [
@@ -109,13 +108,6 @@
    "label": "Input Serial Numbers"
   },
   {
-   "default": "None",
-   "fieldname": "route_consignment_locations",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "Route Consignment Locations"
-  },
-  {
    "default": "0",
    "fieldname": "repaintcntr",
    "fieldtype": "Data",
@@ -126,7 +118,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2022-03-27 06:35:01.538590",
+ "modified": "2022-03-27 14:02:39.578518",
  "modified_by": "Administrator",
  "module": "Returnable",
  "name": "Returnables Batch Transfers",
