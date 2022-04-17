@@ -42,6 +42,9 @@ class ReturnablesBatchTransfers(Document):
 		report = """"""
 		sep = """\n"""
 		for rtbl in self.customer_returnables:
+			print("returnable... ")
+			print(f"   - Selected: {rtbl.selected}\n   - S/N: {rtbl.serial_number}\n   - Location: {rtbl.location}\n   - Consignment: {rtbl.consignment}")
+			# print(json.dumps(rtbl, indent=4, default=vars))
 			if (rtbl.selected):
 				if rtbl.consignment in validTransfers:
 					validTransfers[rtbl.consignment].SNs = validTransfers[rtbl.consignment]['SNs'] + "\n" + rtbl.serial_number
@@ -50,6 +53,8 @@ class ReturnablesBatchTransfers(Document):
 					validTransfers[rtbl.consignment].SNs = rtbl.serial_number
 
 				validTransfers[rtbl.consignment].count += 1
+
+			# rtbl.location = rtbl.consignment
 
 		stock_entry = frappe.get_doc({
 		  'doctype': 'Stock Entry',
@@ -81,7 +86,7 @@ class ReturnablesBatchTransfers(Document):
 		stock_entry.submit()
 
 		# # frappe.throw(f"""\n\n\n ### customer_returnables: {stock_entry}\n* * * SERVERSIDE CURTAILED * * * """)
-		# frappe.throw(f"""\n\n\n ### customer_returnables: \n{print(json.dumps(stock_entry, indent=4))}\n* * * SERVERSIDE CURTAILED * * * """)
+		# frappe.throw(f"""\n\n\n ### customer_returnables: \n* * * SERVERSIDE CURTAILED * * * """)
 
 
 def orderBySerialNumber(customerSerialNumbers):

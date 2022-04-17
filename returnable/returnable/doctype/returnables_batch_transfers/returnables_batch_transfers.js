@@ -2,43 +2,43 @@
 // For license information, please see license.txt
 
 
-const emptyStore = {
-    "AllSerialNumbers" : {
-        "custody_group": "Envases IB Custodia del Cliente - LSSA"
-    },
-    "route_consignment_locations": "None"
-};
+// const emptyStore = {
+//     "AllSerialNumbers" : {
+//         "custody_group": "Envases IB Custodia del Cliente - LSSA"
+//     },
+//     "route_consignment_locations": "None"
+// };
 
-const unStore = () => {
-    const method = "unStore";
-    console.log(`########################## -->| ${method}: ${this.frm.docname} |<-- ############################`);
-    return;
+// const unStore = () => {
+//     const method = "unStore";
+//     console.log(`########################## -->| ${method}: ${this.frm.docname} |<-- ############################`);
+//     return;
 
-    let LS = null;
-    if (localStorage[this.frm.docname]) {
-        LS = JSON.parse(localStorage[this.frm.docname]);
-    } else {
-        LS = emptyStore;
-    }
-    this.frm.route_consignment_locations = LS.route_consignment_locations;
-    this.frm.AllSerialNumbers = LS.AllSerialNumbers;
-}
+//     let LS = null;
+//     if (localStorage[this.frm.docname]) {
+//         LS = JSON.parse(localStorage[this.frm.docname]);
+//     } else {
+//         LS = emptyStore;
+//     }
+//     this.frm.route_consignment_locations = LS.route_consignment_locations;
+//     this.frm.AllSerialNumbers = LS.AllSerialNumbers;
+// }
 
-const store = () => {
-    const method = "store";
-    console.log(`########################## -->| ${method}: ${this.frm.docname} |<-- ############################`);
-    return;
+// const store = () => {
+//     const method = "store";
+//     console.log(`########################## -->| ${method}: ${this.frm.docname} |<-- ############################`);
+//     return;
 
-    console.log('this.frm.route_consignment_locations');
-    console.dir(this.frm.route_consignment_locations);
-    localStorage.setItem(
-        this.frm.docname,
-        JSON.stringify({
-            "AllSerialNumbers" : this.frm.AllSerialNumbers,
-            "route_consignment_locations": this.frm.route_consignment_locations
-        }, null, 2)
-    );
-}
+//     console.log('this.frm.route_consignment_locations');
+//     console.dir(this.frm.route_consignment_locations);
+//     localStorage.setItem(
+//         this.frm.docname,
+//         JSON.stringify({
+//             "AllSerialNumbers" : this.frm.AllSerialNumbers,
+//             "route_consignment_locations": this.frm.route_consignment_locations
+//         }, null, 2)
+//     );
+// }
 
 const after_save = () => {
     const event = "after_save";
@@ -69,17 +69,33 @@ const before_save = () => {
 
 
 
-    store();
+    // store();
     localStorage.setItem("oldDocName", this.frm.docname);
 
     this.frm.route_consignment_locations = "";
 };
 
 const before_submit = () => {
-    store();
+    const method = "before_submit";
+    console.log(`########################## -->| ${method}: ${event} |<-- ############################`);
     this.frm.route_consignment_locations = "";
+
+    const { frm } = this;
+    const { doc } = frm;
+    const { customer_returnables } = doc;
+
+    for (let idx = 0; idx < customer_returnables.length; idx += 1) {
+            let location = frm.doc.customer_returnables[idx].location;
+            console.dir(location);
+            frm.doc.customer_returnables[idx].location =
+                    location.split("'")[1].split(":")[1].replace(';', '|') +
+                    frm.doc.customer_returnables[idx].consignment
+            console.log("cr");
+            console.dir(frm.doc.customer_returnables[idx]);
+    }
+
     // const msg = ` * * * CURTAILED * * * `;
-    // console.log("*******************>|<*******************");
+    // console.log("*******************> | <*******************");
     // frappe.msgprint(__(`${msg}`));
     // frappe.validated = false;
 };
@@ -88,7 +104,7 @@ const fillCustomerReturnablesChildTable = (event) => {
     const method = "fillCustomerReturnablesChildTable";
     console.log(`##########################->| ${method} |<-###############################`);
 
-    unStore();
+    // unStore();
     const { frm } = this;
     const { doc } = frm;
     let { route_consignment_locations } = frm;
@@ -148,7 +164,7 @@ const getRouteCustomersExistingReturnables = (event) => {
                 console.log(`<<<  route_consignment_locations >>>`)
                 console.dir(frm.route_consignment_locations);
 
-                store();
+                // store();
                 fillCustomerReturnablesChildTable(event)
             }
         });
@@ -162,27 +178,28 @@ const getRouteCustomersExistingReturnables = (event) => {
         frm.refresh_field('anomalies');
         frm.route_consignment_locations = "None";
 
-        store();
+        // store();
         fillCustomerReturnablesChildTable(event);
     }
 };
 
 const rePaintChildTable = (event) => {
+    console.log(`******** docstatus: ${this.frm.doc.docstatus}`);
     const method = "rePaintChildTable";
     console.log(`########################## -->| ${method}: ${event} |<-- ############################`);
     if (event === "after_save") {
         this.frm.doc.serial_numbers += ",";
-        this.frm.refresh_field('serial_numbers');
-        console.log(this.frm.doc.serial_numbers);
     }
 
     const { frm } = this;
     const { doc, is_wrong, is_anomaly } = frm;
-    const { direction } = doc;
+    const { direction, docstatus } = doc;
 
-    frm.refresh_field('serial_numbers');
+    this.frm.refresh_field('serial_numbers');
+    console.log(this.frm.doc.serial_numbers);
     for ( let idx = 0; idx < frm.is_wrong.length; idx += 1) {
-        let { consignment } = doc.customer_returnables[idx];
+        let { consignment, location } = doc.customer_returnables[idx];
+        console.log(`******** consignment: ${consignment},  location: ${location}`);
         const row = frm.fields_dict.customer_returnables.grid.grid_rows[idx];
 
         const isAnomaly = direction === 'Cliente >> Sucios'  ?  is_anomaly[idx]  :  false;
@@ -198,7 +215,8 @@ const rePaintChildTable = (event) => {
         this.frm.fields_dict.customer_returnables.grid.grid_rows[idx].select(selected);
         this.frm.fields_dict.customer_returnables.grid.grid_rows[idx].refresh_check();
     }
-    frm.refresh_field('customer_returnables');
+    this.frm.refresh_field('customer_returnables');
+    this.frm.refresh();
 };
 
 const delivery_trip = () => {
@@ -214,7 +232,7 @@ const serial_numbers = (event) => {
     const { frm } = this;
     const { doc } = frm;
 
-    const { serial_numbers, direction } = doc;
+    const { serial_numbers, direction, docstatus, customer_returnables } = doc;
 
     let { AllSerialNumbers } = frm;
     const { custody_group, lookup } = AllSerialNumbers;
@@ -245,26 +263,36 @@ const serial_numbers = (event) => {
 
             let wrong = true;
             let color = "red";
-            if (lookup[serial_number]) {
-                console.log(`Direction: ${direction}`);
-                if (direction === "Sucios >> Llenos") {
-                    if (lookup[serial_number].warehouse === 'Envases IB Sucios - LSSA') {
-                        color = "green";
-                        wrong = false;
-                    }
-                } else {
-                    if (lookup[serial_number].parent_warehouse === custody_group) {
-                        color = "green";
-                        wrong = false;
+            let displayLocation = lookup[serial_number].warehouse;
+            if (docstatus === 1) {
+                console.log(`customer_returnables[${rowNum - 1}]`);
+                console.dir(customer_returnables[rowNum - 1]);
+                displayLocation = customer_returnables[rowNum - 1].consignment;
+                color = customer_returnables[rowNum - 1].location.split['|'][0];
+                wrong = ! customer_returnables[rowNum - 1].selected;
+            } else {
+                if (lookup[serial_number]) {
+                    console.log(`Direction: ${direction}`);
+                    if (direction === "Sucios >> Llenos") {
+                        if (displayLocation === 'Envases IB Sucios - LSSA') {
+                            color = "green";
+                            wrong = false;
+                        }
+                    } else {
+                        if (lookup[serial_number].parent_warehouse === custody_group) {
+                            color = "green";
+                            wrong = false;
+                        }
                     }
                 }
             }
+
             frm.is_wrong.push(wrong);
             frm.add_child('customer_returnables', {
                 "selected": ! wrong,
                 "serial_number": serial_number,
-                "location": `<p style='color:Salmon;'>${lookup[serial_number].warehouse}</p>`,
-                "consignment": lookup[serial_number].warehouse
+                "location": `<p style='color:Salmon;'>${displayLocation}</p>`,
+                "consignment": displayLocation
             });
 
             rowNum += 1;
@@ -279,7 +307,7 @@ const serial_numbers = (event) => {
 
 const prepare_globals = (event) => {
     console.log(`########################## -->| prepare_globals |<-- ############################`);
-    unStore();
+    // unStore();
 
     const { frm } = this;
     const { doc } = frm;
@@ -310,6 +338,9 @@ const prepare_globals = (event) => {
     frm.AllSerialNumbers = "";
     doc.old_valid_sn = "";
 
+    // console.dir(doc.customer_returnables[0])
+    // return;
+
     const method = "returnable.returnable.doctype.returnables_batch_transfers.returnables_batch_transfers.getAllSerialNumbers";
         frappe.call({ method,
         args: {},
@@ -322,7 +353,7 @@ const prepare_globals = (event) => {
 
             console.log("route_consignment_locations")
             console.dir(route_consignment_locations)
-            store();
+            // store();
 
             serial_numbers(event);
 
@@ -334,11 +365,17 @@ const prepare_globals = (event) => {
     });
 };
 
+const onload = () => {
+    const event = "onload";
+    console.log(`########################## -->| ${event} |<-- ############################ ${this.frm.docname} -->|`);
+    // console.dir(this);
+};
+
 const onload_post_render = () => {
     const event = "onload_post_render";
-    console.log(`########################## -->| ${event} |<-- ############################ ${this.frm.docname}`);
+    console.log(`########################## -->| ${event} |<-- ############################ ${this.frm.docname} -->|`);
     // this.frm.doc.addEventListener(REPAINT, paintEventListener);
-    console.dir(this);
+    // console.dir(this);
 
     prepare_globals(event);
 };
@@ -346,7 +383,8 @@ const onload_post_render = () => {
 const setup = () => {
     const event = "setup";
     console.log(`########################## -->| ${event} |<-- ############################ ${this.frm.docname}`);
-    localStorage.setItem(this.frm.docname, JSON.stringify(emptyStore, null, 2));
+    // localStorage.setItem(this.frm.docname, JSON.stringify(emptyStore, null, 2));
+    // console.dir(this);
 };
 
 const direction = () => {
@@ -363,6 +401,7 @@ const repaintcntr = (event) => {
 
 frappe.ui.form.on('Returnables Batch Transfers', {
     setup,
+    onload,
     onload_post_render,
     serial_numbers,
     direction,

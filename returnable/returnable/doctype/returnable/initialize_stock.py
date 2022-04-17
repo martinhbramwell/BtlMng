@@ -234,7 +234,6 @@ def prepareReferenceTables(bottlesStatusPage):
     #   "LEVO CIA LTDA"
     # ],
 
-
 def createPurchaseOrder(spec):
     purchase_order = frappe.get_doc({
         "doctype": 'Purchase Order',
@@ -345,7 +344,8 @@ def generatePurchaseOrders(bottle_blocks):
     idx = 0
     for block_id in bottle_blocks.keys():
         if block_id in POs :
-            print(f"Found '{block_id}' in existing POs")
+            LG(f"   Purchase order for #{block_id} has already been created.")
+            purchase_orders[block_id] = {}
         else:
 
             idx += 1
@@ -375,46 +375,93 @@ def generatePurchaseOrders(bottle_blocks):
     LG("==== Generated Purchase Orders ====")
     return purchase_orders
 
+def getExistingPurchaseReceiptPOs():
+    POs = frappe.db.sql(
+        """SELECT distinct purchase_order FROM `tabPurchase Receipt Item`""",
+        as_list=True
+    )
+    # LG(f"POs :: {POs}")
+
+    purchase_orders = []
+    for PO in POs:
+        # LG(f"PO :: {PO[0]}")
+        purchase_orders.append(PO[0])
+
+    # fields=['purchase_order'],    SELECT distinct purchase_order FROM `tabPurchase Receipt Item`;
+    return purchase_orders
+
 def generatePurchaseReceipts(serial_number_blocks):
-    LG("==== Generating Purchase Receipts ====")
+    LG("\n==== Generating Purchase Receipts ====")
+
+    PRPOs = getExistingPurchaseReceiptPOs()
+    # LG(f"PRPOs :: {PRPOs}")
+
     all_purchase_orders = frappe.db.get_list('Purchase Order')
 
     purchase_receipts = frappe._dict()
     for po in all_purchase_orders:
-        purchase_receipt = frappe._dict()
-        PurchaseOrder = frappe.get_doc('Purchase Order', po.name)
-        po_seq = int(PurchaseOrder.name[13:18])
+        # LG(f"PO :: {po.name}")
+        if po.name in PRPOs:
+            LG(f"   Purchase receipt for PO #{po.name} has already been created.")
+        else:
+            purchase_receipt = frappe._dict()
+            PurchaseOrder = frappe.get_doc('Purchase Order', po.name)
+            po_seq = int(PurchaseOrder.name[13:18])
 
-        creation = pseudoDate("2016-01-{} 15:52", po_seq, True, True)
-        posting_date = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
-        posting_time = pseudoDate("2016-01-{} 16:59", po_seq, False, True)
-        supplier = "Fabrica De Envases S. A. FADESA"
+            creation = pseudoDate("2016-01-{} 15:52", po_seq, True, True)
+            posting_date = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
+            posting_time = pseudoDate("2016-01-{} 16:59", po_seq, False, True)
+            supplier = "Fabrica De Envases S. A. FADESA"
 
-        purchase_order = PurchaseOrder.name
-        # purchase_order_item = PurchaseOrder.items[0].name
-        scheduled = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
+            purchase_order = PurchaseOrder.name
+            # purchase_order_item = PurchaseOrder.items[0].name
+            scheduled = pseudoDate("2016-01-{} 16:59", po_seq, True, False)
 
-        block_id = PurchaseOrder.order_confirmation_no
-        quantity = serial_number_blocks[block_id].qty
-        serial_no = serial_number_blocks[block_id].sns
+            block_id = PurchaseOrder.order_confirmation_no
+            quantity = serial_number_blocks[block_id].qty
+            serial_no = serial_number_blocks[block_id].sns
 
-        LG("      PO #{}: {} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, block_id, quantity))
-        # print( "Creation: {}. Posting Date: {},  Time: {}.  Scheduled: {}".format(creation, posting_date, posting_time, scheduled))
+            LG("      PO #{}: {} matched with {} having {} bottles".format(str(po_seq).zfill(2), purchase_order, block_id, quantity))
+            # print( "Creation: {}. Posting Date: {},  Time: {}.  Scheduled: {}".format(creation, posting_date, posting_time, scheduled))
 
-        purchase_receipt['pr'] = createPurchaseReceipt(frappe._dict({
-            'creation': creation,
-            'posting_date': posting_date,
-            'posting_time': posting_time,
-            'supplier': supplier,
-            'purchase_order': purchase_order,
-            'purchase_order_items': PurchaseOrder.items,
-            'schedule_date': scheduled,
-            'quantity': quantity,
-            'serial_no': serial_no
-        }))
+            purchase_receipt['pr'] = createPurchaseReceipt(frappe._dict({
+                'creation': creation,
+                'posting_date': posting_date,
+                'posting_time': posting_time,
+                'supplier': supplier,
+                'purchase_order': purchase_order,
+                'purchase_order_items': PurchaseOrder.items,
+                'schedule_date': scheduled,
+                'quantity': quantity,
+                'serial_no': serial_no
+            }))
 
-        purchase_receipts.setdefault(block_id, purchase_receipt)
-    LG("==== Generated Purchase Receipts ====")
+            purchase_receipts.setdefault(block_id, purchase_receipt)
+    LG("==== Generated Purchase Receipts ====\n")
+    return
+
+def transferBottles(target, serial_number_blocks):
+    LG("==== Transfer Bottles Block to {} ====".format(target))
+    for block_id in serial_number_blocks:
+        bottle_block = serial_number_blocks[block_id][target]
+        bottles = bottle_block.sns
+        qty = bottle_block.qty
+        if qty > 0:
+            LG("        Transferring {} ({}) to {}".format(block_id, qty, target))
+            LG("{}".format(bottles))
+
+            spec = frappe._dict({
+                'sn_block': block_id,
+                'qty': qty,
+                'src': SUCIOS,
+                'tgt': target,
+                'serial_no': bottles
+            })
+
+            createStockEntry(spec)
+
+        sleep(1)
+    LG("      Transferred")
 
 def relocateBottlesInternally(serial_number_blocks):
     LG("==== Relocating Bottles Internally ====")
@@ -427,8 +474,7 @@ def instantiateWarehouseForEachCustomer(customers):
     for customer_name in sorted(customers.keys()):
         if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos"]:
             location = makeWarehouse(customer_name.strip())
-            print("New stock location: >{}<".format(location))
-
+            print("New/existing stock location: >{}<".format(location))
 
 def getSerialNumbers(bottle_blocks):
     LG("==== Collecting Serial Numbers ====")
@@ -515,35 +561,12 @@ def getSerialNumbers(bottle_blocks):
 
     return serial_number_blocks
 
-def transferBottles(target, serial_number_blocks):
-    LG("==== Transfer Bottles Block to {} ====".format(target))
-    for block_id in serial_number_blocks:
-        bottle_block = serial_number_blocks[block_id][target]
-        bottles = bottle_block.sns
-        qty = bottle_block.qty
-        if qty > 0:
-            LG("        Transferring {} ({}) to {}".format(block_id, qty, target))
-            LG("{}".format(bottles))
-
-            spec = frappe._dict({
-                'sn_block': block_id,
-                'qty': qty,
-                'src': SUCIOS,
-                'tgt': target,
-                'serial_no': bottles
-            })
-
-            createStockEntry(spec)
-
-        sleep(1)
-    LG("      Transferred")
-
 def moveBottlesToCustomers(customers):
     LG("\n\nPause to allow prior transactions to complete...")
-    sleep(60)
+    sleep(30)
     LG("==== Relocating Bottles To Customer Consignment ====")
     for customer_name in sorted(customers.keys()):
-        if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos" ]:
+        if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos", "0" ]:
             item_count = len(customers[customer_name])
             customer = frappe.get_doc('Customer', customer_name)
             # LG("{} ({}) has {} entries.".format(customer_name, customer.gender, item_count))
@@ -719,15 +742,19 @@ def process(company):
 
     bottlesStatusPage = getBottlesStatusFromBAPU(getBAPUCookie())
     LG("    Bottles status page has {} bottles".format(len(bottlesStatusPage)))
-    # print(f"Bottles status page :: {bottlesStatusPage}")
+    # # print(f"Bottles status page :: {bottlesStatusPage}")
 
     customers, bottle_blocks = prepareReferenceTables(bottlesStatusPage)
+    # print(f"customers: {json.dumps(customers, indent=4)}")
+    # print(f"bottle_blocks: {json.dumps(bottle_blocks, indent=4)}")
+
     serial_number_blocks = getSerialNumbers(bottle_blocks)
+    # print(f"serial_number_blocks: {json.dumps(serial_number_blocks, indent=4)}")
 
     instantiateWarehouseForEachCustomer(customers)
 
     purchase_orders = generatePurchaseOrders(bottle_blocks)
-    LG(f"Purchase Orders :: {purchase_orders}")
+    # LG(f"Purchase Orders :: {purchase_orders}")
 
     generatePurchaseReceipts(serial_number_blocks)
 
@@ -737,13 +764,11 @@ def process(company):
 
     LG("Stock Initialization Complete.")
 
-    return "Stock Initialization Complete".format()
-
+    # return "Stock Initialization Complete".format()
 
 @frappe.whitelist()
 def initializeStock(company):
     return process(company)
-
 
 @frappe.whitelist()
 def queueInitializeStock(company):
@@ -751,7 +776,6 @@ def queueInitializeStock(company):
         'returnable.returnable.doctype.returnable.initialize_stock.process',
         company=company, is_async=True, timeout=240000)
     return "Enqueued"
-
 
 @frappe.whitelist()
 def se_count(company):

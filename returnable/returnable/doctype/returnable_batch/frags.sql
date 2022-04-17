@@ -94,12 +94,18 @@
 --    )
 --  LIMIT 5;
 
-SELECT W.name, if(W.account = '1.1.5.01 - Materia Prima - LSSA', "Cliente >> Sucios", "Sucios >> Llenos")
-  FROM `tabWarehouse` W
- WHERE W.parent_warehouse = 'Envases Iridium Blue - LSSA'
-   AND W.account IN (
-         '1.1.5.03 - Productos Terminados - LSSA'
-       , '1.1.5.01 - Materia Prima - LSSA'
-   )
+-- SELECT W.name, if(W.account = '1.1.5.01 - Materia Prima - LSSA', "Cliente >> Sucios", "Sucios >> Llenos")
+--   FROM `tabWarehouse` W
+--  WHERE W.parent_warehouse = 'Envases Iridium Blue - LSSA'
+--    AND W.account IN (
+--          '1.1.5.03 - Productos Terminados - LSSA'
+--        , '1.1.5.01 - Materia Prima - LSSA'
+--    )
 
 -- select * from `tabSingles`;
+
+SELECT distinct purchase_order
+FROM `tabPurchase Receipt Item`
+-- LIMIT 1
+;
+
