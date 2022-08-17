@@ -7,9 +7,9 @@ export REMOTE_PROJECT_DIR="returnable";
 
 source ./envars.sh;
 
-# export REMOTE_PROJECT="${SERVER}:${TARGET_BENCH}";
-export REMOTE_PROJECT="${SERVER}:/home/${ERP_USER_NAME}/${TARGET_BENCH_NAME}/apps/${REMOTE_PROJECT_DIR}";
-# export REMOTE_PROJECT="${SERVER}:/home/${${ERP_USER_NAME}}/${TARGET_BENCH_NAME}/apps/${REMOTE_PROJECT_DIR}";
+export REMOTE_PROJECT="${SERVER}:/home/${ERP_USER_NAME}/projects/BtlMng";
+# export REMOTE_PROJECT="${SERVER}:/home/${ERP_USER_NAME}/${TARGET_BENCH_NAME}/apps/${REMOTE_PROJECT_DIR}";
+# # export REMOTE_PROJECT="${SERVER}:/home/${${ERP_USER_NAME}}/${TARGET_BENCH_NAME}/apps/${REMOTE_PROJECT_DIR}";
 
 
 if [[ -z ${1} ]]; then

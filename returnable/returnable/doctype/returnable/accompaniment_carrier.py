@@ -36,6 +36,17 @@ collectDeliveryNoteItemAttributes = frappe._dict({
     "DeliveryNote": collectDeliveryNoteItemAttributes,
 })
 
+sqlFlaggedWarehouses = """
+    SELECT
+        json_value(pin, '$.proposito') as proposito,
+        name as warehouse
+    FROM
+        tabWarehouse
+    WHERE
+        pin IS NOT NULL
+    ;
+"""
+
 sqlUnionOfRequiringAndRequired = """
     SELECT
         B.item_name,
@@ -129,8 +140,19 @@ def getCurrentAccompanimentItems(doc_type, dictChildItems, allAccompanimentItems
     currentAccompanimentItems = collectRequiredActualItems(dictChildItems, allAccompanimentItems, requiringActualItems)
     return currentAccompanimentItems
 
-def getInsertsAndUpdates(dictChildItems, accompanimentItems, allAccompanimentItems):
-    insertsAndUpdates = frappe._dict({ "inserts": [], "updates": {} })
+def getFlaggedWarehouses():
+    flaggedWarehouses = frappe.db.sql(sqlFlaggedWarehouses, as_dict=1)
+    print("Warehouses")
+    # print(flaggedWarehouses[0]['proposito'])
+    # print(flaggedWarehouses[0].proposito)
+    result = { }
+    for flag in flaggedWarehouses:
+        result[flag.proposito] = flag.warehouse
+    # return { "a": 0 }
+    return result
+
+def getInsertsUpdatesAndWarehouses(dictChildItems, accompanimentItems, allAccompanimentItems):
+    insertsUpdatesAndWarehouses = frappe._dict({ "inserts": [], "updates": {}, "warehouses": {} })
     for item in accompanimentItems:
         requiringItem = accompanimentItems[item]
         itemSpec = allAccompanimentItems.spec[item]
@@ -142,7 +164,7 @@ def getInsertsAndUpdates(dictChildItems, accompanimentItems, allAccompanimentIte
         requiringItem["uom"] = itemSpec.stock_uom
         if item not in dictChildItems:
             print(f"""Insert Item :", {item}        Content :", {requiringItem}""")
-            insertsAndUpdates.inserts.append(requiringItem)
+            insertsUpdatesAndWarehouses.inserts.append(requiringItem)
         else:
             if item in allAccompanimentItems.required.keys():
 
@@ -153,9 +175,10 @@ def getInsertsAndUpdates(dictChildItems, accompanimentItems, allAccompanimentIte
                     correctQuantity = requiringItem["qty"]
                     requiredItem = accompanimentItems[item]
 
-                insertsAndUpdates.updates[item] = requiringItem
+                insertsUpdatesAndWarehouses.updates[item] = requiringItem
 
-    return insertsAndUpdates
+    insertsUpdatesAndWarehouses.warehouses = getFlaggedWarehouses()
+    return insertsUpdatesAndWarehouses
 
 def getConciseDocTypeChildItems(doc_type, DocTypeChildItems):
     conciseChildItems = frappe._dict()
@@ -167,10 +190,36 @@ def getConciseDocTypeChildItems(doc_type, DocTypeChildItems):
             conciseChildItems[item_code] = collectDeliveryNoteItemAttributes[doc_type](childItem)
     return conciseChildItems
 
+def findAccompanyingStockEntries(ctx):
+    print(f"findAccompanyingStockEntries :: ({ctx.work_order}, {ctx.purpose})")
+    sqlAccompanyingStockEntries  = f"""
+        SELECT
+              SE.name
+            , SE.purpose
+            , SE.work_order
+            , SED.name
+            , SED.item_code
+            , SED.s_warehouse
+            , SED.t_warehouse
+        FROM
+              `tabStock Entry` SE
+            , `tabStock Entry Detail` SED 
+        WHERE
+            SE.work_order = '{ctx.work_order}' 
+        AND SE.name = SED.parent 
+        AND SE.purpose = '{ctx.purpose}'
+    """
+    return frappe.db.sql(sqlAccompanyingStockEntries, as_dict=1)
+
+
 @frappe.whitelist()
 def getCarrierAccompanimentItems(doc_type, doc_items):
+# def getCarrierAccompanimentItems(doc_type, doc_items, work_order_context):
 
-    insertsAndUpdates = { "inserts": "dummy", "updates": "dummy" }
+    # print("work_order_context")
+    # print(work_order_context)
+
+    insertsUpdatesAndWarehouses = { "inserts": "dummy", "updates": "dummy", "warehouses": "dummy" }
     # DocTypeChildItems = json.loads(doc_items)
     dictChildItems = getConciseDocTypeChildItems(doc_type, json.loads(doc_items))
     # print("dictChildItems")
@@ -184,12 +233,16 @@ def getCarrierAccompanimentItems(doc_type, doc_items):
     # print("accompanimentItems")
     # print (json.dumps(accompanimentItems, sort_keys=True, indent=4))
 
-    insertsAndUpdates = getInsertsAndUpdates(dictChildItems, accompanimentItems, allAccompanimentItems)
-    print("insertsAndUpdates")
-    print (json.dumps(insertsAndUpdates, sort_keys=True, indent=4))
+    # accompanyingStockEntries = findAccompanyingStockEntries(json.loads(work_order_context))
+    # print("accompanyingStockEntries")
+    # print(accompanyingStockEntries)
+
+    insertsUpdatesAndWarehouses = getInsertsUpdatesAndWarehouses(dictChildItems, accompanimentItems, allAccompanimentItems)
+    print("insertsUpdatesAndWarehouses")
+    print (json.dumps(insertsUpdatesAndWarehouses, sort_keys=True, indent=4))
 
     print("%%%%%%%%%%%%%%%% getDeliveryNoteAccompanimentItems %%%%%%%%%%%%%%")
     # return frappe._dict(mockResponse)
 #     return accompanimentItems
     print(f"~~~~~~~~~~~~~~~~~~~~~~~~ {doc_type}   ~~~~~~~~~~~~~~~~~~~~~~~~~", flush = True)
-    return insertsAndUpdates
+    return insertsUpdatesAndWarehouses
