@@ -1,1 +1,1 @@
-/opt/docTypeHandlers/envars/envars_erp_logichem_solutions.sh
+/opt/ce_sri/envars.sh

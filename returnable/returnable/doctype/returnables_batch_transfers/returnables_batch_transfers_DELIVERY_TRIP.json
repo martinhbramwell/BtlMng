@@ -41,6 +41,32 @@
    "options": "Cliente >> Sucios\nSucios >> Llenos"
   },
   {
+   "fieldname": "delivery_trip_section",
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:true\n",
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldtype": "Section Break",
+   "label": "Delivery Trip"
+  },
+  {
+   "fieldname": "delivery_trip",
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldtype": "Link",
+   "label": "Delivery Trip",
+   "options": "Delivery Trip"
+  },
+  {
+   "fieldname": "anom_column",
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "anomalies",
+   "depends_on": "eval:in_list([\"Cliente >> Sucios\"], doc.direction)\n",
+   "fieldtype": "Small Text",
+   "label": "Anomalies"
+  },
+  {
    "fieldname": "valid_serial_numbers_section",
    "collapsible": 1,
    "collapsible_depends_on": "eval: false",

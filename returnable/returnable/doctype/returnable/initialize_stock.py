@@ -165,7 +165,9 @@ def getBadDataLookupDict():
 
 def getBAPUCookie():
     cookie = ""
-    envars = Path("{}/../apps/electronic_invoice/install_scripts/envars.sh".format(os.getcwd())).resolve()
+    envars = Path("{}/../apps/ce_sri/envars.sh".format(os.getcwd())).resolve()
+    # envars = Path("{}/../apps/electronic_invoice/install_scripts/envars.sh".format(os.getcwd())).resolve()
+    LG(f"==== Getting BAPU cookie from {envars} ====")
     with open(envars, 'r') as input:
        for line in input:
            if 'COOKIE_VAL' in line:
@@ -174,6 +176,7 @@ def getBAPUCookie():
                     cookie = parts.group(1)
                 break
 
+    LG(f"==== BAPU cookie :: {cookie} ====")
     return cookie
 
 BOTTLE_LIST_FILE = "bottleList.json"
@@ -562,57 +565,71 @@ def getSerialNumbers(bottle_blocks):
     return serial_number_blocks
 
 def moveBottlesToCustomers(customers):
-    LG("\n\nPause to allow prior transactions to complete...")
-    sleep(30)
     LG("==== Relocating Bottles To Customer Consignment ====")
     for customer_name in sorted(customers.keys()):
+        print(f"customer_name : {customer_name}", flush=True)
         if customer_name not in [ "ALERTAR", "Envases Rotos", "Envases Perdidos", "0" ]:
-            item_count = len(customers[customer_name])
-            customer = frappe.get_doc('Customer', customer_name)
-            # LG("{} ({}) has {} entries.".format(customer_name, customer.gender, item_count))
-            bottles = []
-            for bottle_block in customers[customer_name]:
-                bottles.append(bottle_block[1])
-                # LG("    Bottles {}.".format(bottles))
-                # print("    Bottles {}.".format(bottle_block))
+            # if "A" <= customer_name < "F":
+            # if "F" <= customer_name < "N":
+            if "N" <= customer_name < "Zz":
+                item_count = len(customers[customer_name])
+                customer = frappe.get_doc('Customer', customer_name)
+                LG("{} ({}) has {} entries.".format(customer_name, customer.gender, item_count))
+                if 1 == 1:
+                    bottles = []
+                    for bottle_block in customers[customer_name]:
+                        bottles.append(bottle_block[1])
+                        # LG("    Bottles {}.".format(bottles))
+                        # print("    Bottles {}.".format(bottle_block))
 
-            qty = len(bottles)
-            if qty > 0:
-                location = "{} - {}".format(customer_name.strip(), ABBR_COMPANY)
-                body = {
-                  "doctype": "Stock Entry",
-                  "docstatus": 0,
-                  "naming_series": "MAT-STE-.YYYY.-",
-                  "stock_entry_type": "Material Transfer",
-                  "title": "Move {} bottles to {}".format(qty, location),
-                  "items": [
-                    {
-                      "qty": qty,
-                      "item_code": "Envase de 5GL Iridium Blue",
-                      "s_warehouse": SUCIOS,
-                      "allow_zero_valuation_rate": 0,
-                      "t_warehouse": location
-                    }, {
-                      "qty": qty,
-                      "item_code": "FICHA - para envase IB de 5GL",
-                      "s_warehouse": SUCIOS,
-                      "allow_zero_valuation_rate": 1,
-                      "serial_no": ", ".join(bottles),
-                      "t_warehouse": location
-                    }]
-                }
+                    qty = len(bottles)
+                    if qty > 0:
+                        location = "{} - {}".format(customer_name.strip(), ABBR_COMPANY)
+                        body = {
+                          "doctype": "Stock Entry",
+                          "docstatus": 0,
+                          "naming_series": "MAT-STE-.YYYY.-",
+                          "stock_entry_type": "Material Transfer",
+                          "title": "Move {} bottles to {}".format(qty, location),
+                          "items": [
+                            {
+                              "qty": qty,
+                              "item_code": "Envase de 5GL Iridium Blue",
+                              "s_warehouse": SUCIOS,
+                              "allow_zero_valuation_rate": 0,
+                              "t_warehouse": location
+                            }, {
+                              "qty": qty,
+                              "item_code": "FICHA - para envase IB de 5GL",
+                              "s_warehouse": SUCIOS,
+                              "allow_zero_valuation_rate": 1,
+                              "serial_no": ", ".join(bottles),
+                              "t_warehouse": location
+                            }]
+                        }
 
-                LG("----- {}".format(body))
+                        LG("----- {}".format(body))
 
-                stock_entry = frappe.get_doc(body)
+                        try:
+                            stock_entry = frappe.get_doc(body)
 
-                stock_entry.save()
-                stock_entry.submit()
+                            stock_entry.save()
+                            stock_entry.submit()
+                        except Exception as exc: 
+                            print(f"Could not submit: \n{exc}")
 
-                LG("Committing a {} bottle Stock Entry for {}".format(qty, location))
-                frappe.db.commit()
 
-            sleep(1)
+                        LG("Committing a {} bottle Stock Entry for {}".format(qty, location))
+                        frappe.db.commit()
+
+                    LG("----- Committed ")
+                    print("Committed", flush=True)
+
+            # LG("----- Sleep 5")
+            # print(f"Sleep 5", flush=True)
+            # sleep(5)
+            # print(f"Slept", flush=True)
+            # LG("----- Slept")
     LG("==== Relocated Bottles To Customer Consignment ====")
 
 @frappe.whitelist()
@@ -751,14 +768,21 @@ def process(company):
     serial_number_blocks = getSerialNumbers(bottle_blocks)
     # print(f"serial_number_blocks: {json.dumps(serial_number_blocks, indent=4)}")
 
-    instantiateWarehouseForEachCustomer(customers)
+    # instantiateWarehouseForEachCustomer(customers)
 
-    purchase_orders = generatePurchaseOrders(bottle_blocks)
-    # LG(f"Purchase Orders :: {purchase_orders}")
+    # purchase_orders = generatePurchaseOrders(bottle_blocks)
+    # # LG(f"Purchase Orders :: {purchase_orders}")
 
-    generatePurchaseReceipts(serial_number_blocks)
+    # generatePurchaseReceipts(serial_number_blocks)
 
-    relocateBottlesInternally(serial_number_blocks)
+    # relocateBottlesInternally(serial_number_blocks)
+
+    # LG("\n\nPause to allow prior transactions to complete...")
+    # print("Sleeping 1")
+    # sleep(1)
+    # print("Sleeping 30")
+    # sleep(30)
+    # print("Slept")
 
     moveBottlesToCustomers(customers)
 

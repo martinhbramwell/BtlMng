@@ -1,0 +1,103 @@
+crlf = ""
+msg = ""
+
+msg = f"""{msg}{crlf} -------------------------------"""
+crlf = "<br>"
+
+# def getFlaggedWarehouses():
+#     sqlFlaggedWarehouses = """
+#         SELECT
+#             json_value(pin, '$.proposito') as proposito,
+#             name as warehouse
+#         FROM
+#             tabWarehouse
+#         WHERE
+#             pin IS NOT NULL
+#         ;
+#     """
+
+#     flaggedWarehouses = frappe.db.sql(sqlFlaggedWarehouses, as_dict=1)
+#     result = { }
+#     for flag in flaggedWarehouses:
+#         result[flag.proposito] = flag.warehouse
+#     # return { "a": 0 }
+#     return result
+
+# listWarehouses = getFlaggedWarehouses()
+
+msg = f"""{msg}{crlf} {doc.company}"""
+msg = f"""{msg}{crlf} {doc.purpose}"""
+msg = f"""{msg}{crlf} {doc.stock_entry_type}"""
+msg = f"""{msg}{crlf} {doc.items[0].s_warehouse}"""
+# msg = f"""{msg}{crlf} {listWarehouses['cuarto limpio']}"""
+# msg = f"""{msg}{crlf} {doc.}"""
+
+
+
+# cmpny = frappe.get_doc("Company", doc.company)
+# source_warehouse = f"Envases IB Sucios - {cmpny.abbr}"
+
+# if doc.to_warehouse == "Envases IB Llenos - LSSA":
+
+#     sep = ""
+#     accompaniers = []
+#     msg = []
+#     msg.append("Items:: ")
+#     items = {}
+
+#     # Get all item names and possible required accompaniments
+#     for seItem in doc.items:
+#         code = seItem.item_code
+#         stItem = frappe.get_doc("Item", code)
+#         if stItem.required_accompaniment is not None:
+#             accompaniers.append(stItem.required_accompaniment)
+#         msg.append(f"{code} (x{seItem.qty}) - {stItem.required_accompaniment}")
+#         items[code] = seItem.qty
+#         sep = ", "
+
+#     msg = []
+#     msg.append("Accompaniers :: ")
+#     missing = []
+#     for accompanier in accompaniers:
+#         if accompanier in items:
+#             msg.append(f"Found {accompanier}")
+#         else:
+#             msg.append(f"Did not find {accompanier}")
+#             missing.append(accompanier)
+
+#     # SE = frappe.get_doc('Stock Entry', doc.name)
+#     dirty = False
+#     for absent in missing:
+#         newRow = {
+#             # 'name': absent,
+#             's_warehouse': source_warehouse,
+#             't_warehouse': doc.to_warehouse,
+#             'item_code': absent,
+#             # 'modified': None,
+#             'qty': doc.fg_completed_qty,
+#             'allow_zero_valuation_rate': 1
+#         }
+#         # SE.append('items', newRow)
+#         doc.append('items', newRow)
+#         dirty = True
+
+#     # if len(accompaniers) > 0:
+#     #     sep = ""
+#     #     row_numbers = []
+#     #     idx = 0
+#     #     for seItem in doc.items:
+#     #         if seItem.item_code in accompaniers:
+#     #             row_numbers.append(idx)
+#     #         idx = idx + 1
+
+#     if dirty:
+#         msg = f"saving - {doc.name}"
+#         # SE.save()
+#         # doc.save()
+
+#     frappe.msgprint( msg = msg, title = 'Debug' )
+#     raise frappe.ValidationError
+
+# # frappe.msgprint( msg = "Not interesting", title = 'Debug' )
+msg = f"""{msg}{crlf} -------------------------------"""
+frappe.msgprint( msg = msg, title = 'Debug' )

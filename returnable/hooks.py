@@ -15,6 +15,58 @@ fixtures = [
   { "dt": "Custom Field", "filters": [["fieldname", "in", ("envases_sucios", "envases_llenos", "returnables", "holdings", "accompaniment", "requires_accompaniment", "column_break_acc", "required_accompaniment")]]}
 ]
 
+# Document Events
+# ---------------
+# Hook on document methods and events
+
+doc_events = {
+    "Delivery Note": {
+        "validate": "returnable.hook_tasks.startStockEntry"
+    }
+}
+
+# doc_events = {
+#   "*": {
+#       "on_update": "method",
+#       "on_cancel": "method",
+#       "on_trash": "method"
+#   }
+# }
+
+
+# Scheduled Tasks
+# ---------------
+
+scheduler_events = {
+    "cron": {
+        "* * * * *": [
+            "returnable.hook_tasks.returnableMoveFromMaterialTransfer"
+        ]
+    }
+}
+
+# scheduler_events = {
+#     # "all": [
+#     #     "returnable.tasks.all"
+#     # ],
+#     # "daily": [
+#     #     "returnable.tasks.daily"
+#     # ],
+#     # "hourly": [
+#     #     "returnable.tasks.hourly"
+#     # ],
+#     # "weekly": [
+#     #     "returnable.tasks.weekly"
+#     # ].
+#     # "monthly": [
+#     #     "returnable.tasks.monthly"
+#     # ],
+#     "cron": {
+#         "* * * * *": [
+#             "returnable.hook_tasks.test"
+#         ]
+#     }
+# }
 
 # Includes in <head>
 # ------------------
@@ -39,24 +91,6 @@ fixtures = [
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
-
-# Document Events
-# ---------------
-# Hook on document methods and events
-
-doc_events = {
-    "Delivery Note": {
-        "validate": "returnable.hook_tasks.startStockEntry"
-    }
-}
-
-# doc_events = {
-#   "*": {
-#       "on_update": "method",
-#       "on_cancel": "method",
-#       "on_trash": "method"
-#   }
-# }
 
 # Home Pages
 # ----------
@@ -100,27 +134,6 @@ doc_events = {
 #
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
-
-# Scheduled Tasks
-# ---------------
-
-# scheduler_events = {
-# 	"all": [
-# 		"returnable.tasks.all"
-# 	],
-# 	"daily": [
-# 		"returnable.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"returnable.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"returnable.tasks.weekly"
-# 	]
-# 	"monthly": [
-# 		"returnable.tasks.monthly"
-# 	]
 # }
 
 # Testing
