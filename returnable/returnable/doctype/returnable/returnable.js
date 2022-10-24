@@ -22,17 +22,27 @@ function fixMandatory(frm, name) {
 }
 
 frappe.ui.form.on('Returnable', {
-	refresh: function(frm, dt, dn) {
-    console.log(`Refreshed ${dn} (${dt}):  [8]`);
-    // console.dir(frm);
-    cur_frm.doc.moves.some(function(m) {
-      console.log(`Move: ${m.direction} :: ${m.from_stock}`);
-      console.dir(m);
-    });
-  },
+	// refresh: function(frm, dt, dn) {
+ //    console.log(`Refreshed ${dn} (${dt}):  [8]`);
+ //    // console.dir(frm);
+ //    cur_frm.doc.moves.some(m => {
+ //      console.log(`Movement: ${m.direction} :: ${m.from_stock}`);
+ //      console.dir(m);
+ //    });
+ //  },
   validate: (frm, cdt, cdn) => {
     console.log(`Validating child ${cdn} (${cdt}):`);
     frm.fields_dict["moves"].grid.data.forEach(row => fixMandatory(frm, row.name));
+  },
+  onload: (frm, cdt, cdn) => {
+    console.log(`Loading child ${cdn} (${cdt}):`);
+    frm.set_query("moves", "items", function() {
+        return {
+            query: "erpnext.controllers.queries.item_query",
+            filters: frm.doc.enquiry_type === "Maintenance" ?
+                {"is_service_item": "Yes"} : {"is_sales_item": "Yes"}
+        };
+    });
   }
 });
 
@@ -55,3 +65,12 @@ frappe.ui.form.on("Returnable Movement", {
     current_row.toggle_reqd("to_customer", row.direction.includes('> Cust'));
   }
 });
+
+frappe.ui.form.on("Delivery Trip", {
+  refresh: (frm, cdt, cdn) => {
+    console.log(`######################### Delivery Trip => refresh() ${cdn} (${cdt}):`);
+    console.dir(frm);
+  }
+});
+
+

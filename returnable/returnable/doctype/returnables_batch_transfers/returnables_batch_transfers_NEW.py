@@ -21,13 +21,10 @@ class ReturnablesBatchTransfers(Document):
 	def before_submit(self):
 		print(f"""<<<<<<<<<< before submit >>>>>>>>\n{self.direction}""")
 
-		RETURNING = "Cliente >> Sucios"
-		FILLING = "Sucios >> Llenos"
-
 		company = frappe.db.get_single_value('Global Defaults', 'default_company')
 		defaults = frappe.db.get_value('Company', company, ['envases_sucios', 'envases_llenos'], as_dict=1)
 		sqlSucioLlenoLocations = f"""
-			SELECT W.name, if(W.account = '{defaults.envases_sucios}', "{RETURNING}", "{FILLING}") as direction
+			SELECT W.name, if(W.account = '{defaults.envases_sucios}', "Cliente >> Sucios", "Sucios >> Llenos") as direction
 			  FROM `tabWarehouse` W
 			 WHERE W.parent_warehouse = 'Envases Iridium Blue - LSSA'
 			   AND W.account IN (
@@ -37,56 +34,43 @@ class ReturnablesBatchTransfers(Document):
 	  """
 
 		dictSucioLlenoLocations = frappe.db.sql(sqlSucioLlenoLocations, as_dict=1)
-		print(dictSucioLlenoLocations)
 
 		directionLookUp = {}
 		for location in dictSucioLlenoLocations:
-			directionLookUp[location.direction] = location.name
+			if self.direction == location.direction:
+				directionLookUp[location.direction] = location.name
 
-		print(f"Location : {directionLookUp[self.direction]}")
-
-		# report = """"""
-		# sep = """\n"""
-
-		sourceRules = frappe._dict({})
-		sourceRules[RETURNING] = frappe._dict({ "reject": [ directionLookUp[RETURNING], directionLookUp[FILLING] ], "require": [] })
-		sourceRules[FILLING] = frappe._dict({ "reject": [ directionLookUp[FILLING] ], "require": [ directionLookUp[RETURNING] ] })
-
+		print(".......................")
+		print(directionLookUp)
 		validTransfers = frappe._dict({})
+
+		report = """"""
+		sep = """\n"""
 		for rtbl in self.customer_returnables:
-			if sourceRules[self.direction].require and rtbl.consignment not in sourceRules[self.direction].require:
-				print(f"Failed requirement : S/N: {rtbl.serial_number}  -- Consignment: {rtbl.consignment}")
-			elif sourceRules[self.direction].reject and rtbl.consignment in sourceRules[self.direction].reject:
-				print(f"         Rejecting : S/N: {rtbl.serial_number}  -- Consignment: {rtbl.consignment}")
+			print("returnable... ")
+			print(rtbl)
+			print(f"   S/N: {rtbl.serial_number}\n   - Location: {rtbl.location}\n   - Consignment: {rtbl.consignment}")
+
+			if rtbl.consignment in validTransfers:
+				validTransfers[rtbl.consignment].SNs = validTransfers[rtbl.consignment]['SNs'] + "\n" + rtbl.serial_number
 			else:
-				print(f"        Processing : S/N: {rtbl.serial_number}  -- Consignment: {rtbl.consignment}")
-				# print(f"\nLocation: {rtbl.location} VS Direction: {self.direction}  ({directionLookUp[self.direction]) ")
+				validTransfers[rtbl.consignment] = frappe._dict({ 'SNs': "", 'count': 0 })
+				validTransfers[rtbl.consignment].SNs = rtbl.serial_number
 
-				if rtbl.consignment in validTransfers:
-					validTransfers[rtbl.consignment].SNs = validTransfers[rtbl.consignment]['SNs'] + "\n" + rtbl.serial_number
-				else:
-					validTransfers[rtbl.consignment] = frappe._dict({ 'SNs': "", 'count': 0 })
-					validTransfers[rtbl.consignment].SNs = rtbl.serial_number
+			validTransfers[rtbl.consignment].count += 1
 
-				validTransfers[rtbl.consignment].count += 1
+			# rtbl.location = rtbl.consignment
 
-				# rtbl.location = rtbl.consignment
+		print(validTransfers)
+		raise frappe.ValidationError
+		return;
 
-		# frappe.throw(f"""\n\n\n ### customer_returnables: \n* * * SERVERSIDE CURTAILED * * * """)
 
 		stock_entry = frappe.get_doc({
 		  'doctype': 'Stock Entry',
 		  'docstatus': 0,
-		  'stock_entry_type': 'Material Transfer',
-			'to_warehouse': directionLookUp[self.direction],
-			'from_warehouse': list(validTransfers.keys())[0] if len(validTransfers) == 1 else None
+		  'stock_entry_type': 'Material Transfer'
 		})
-
-		# if len(validTransfers) == 1:
-			# print('validTransfer')
-			# print()
-		# stock_entry['from_warehouse'] = 
-			# stock_entry['to_warehouse'] = validTransfers[0] if len(validTransfers) == 1 else ""
 
 		items = []
 		for source in validTransfers:
@@ -105,17 +89,15 @@ class ReturnablesBatchTransfers(Document):
    #      'qty': validTransfers[source].count
 			# }
 			# items.append(stock_entry_item)
-			print(f"Transfer {validTransfers[source]['count']} from {source} to {directionLookUp[self.direction]}\n{validTransfers[source]['SNs']}")
-
+			print(f"Transfer {validTransfers[source]['count']} ({validTransfers[source]['SNs']}) from {source} to {directionLookUp[self.direction]}")
 		# stock_entry.append('items', items)
-
-		# frappe.throw(f"""\n\n\n ### customer_returnables: \n* * * SERVERSIDE CURTAILED * * * """)
-
 		stock_entry.save()
 		stock_entry.submit()
 
 		# # frappe.throw(f"""\n\n\n ### customer_returnables: {stock_entry}\n* * * SERVERSIDE CURTAILED * * * """)
 		# frappe.throw(f"""\n\n\n ### customer_returnables: \n* * * SERVERSIDE CURTAILED * * * """)
+
+
 
 
 def orderBySerialNumber(customerSerialNumbers):

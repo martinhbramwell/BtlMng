@@ -241,7 +241,7 @@ def getCarrierAccompanimentItems(doc_type, doc_items):
     print("insertsUpdatesAndWarehouses")
     print (json.dumps(insertsUpdatesAndWarehouses, sort_keys=True, indent=4))
 
-    print("%%%%%%%%%%%%%%%% getDeliveryNoteAccompanimentItems %%%%%%%%%%%%%%")
+    print("%%%%%%%%%%%%%%%% getCarrierAccompanimentItems %%%%%%%%%%%%%%")
     # return frappe._dict(mockResponse)
 #     return accompanimentItems
     print(f"~~~~~~~~~~~~~~~~~~~~~~~~ {doc_type}   ~~~~~~~~~~~~~~~~~~~~~~~~~", flush = True)
