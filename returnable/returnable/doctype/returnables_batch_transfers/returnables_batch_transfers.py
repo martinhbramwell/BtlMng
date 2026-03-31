@@ -78,8 +78,8 @@ class ReturnablesBatchTransfers(Document):
 		  'doctype': 'Stock Entry',
 		  'docstatus': 0,
 		  'stock_entry_type': 'Material Transfer',
-			'to_warehouse': directionLookUp[self.direction],
-			'from_warehouse': list(validTransfers.keys())[0] if len(validTransfers) == 1 else None
+		  'to_warehouse': directionLookUp[self.direction],
+		  'from_warehouse': list(validTransfers.keys())[0] if len(validTransfers) == 1 else None
 		})
 
 		# if len(validTransfers) == 1:
@@ -93,6 +93,8 @@ class ReturnablesBatchTransfers(Document):
 			stock_entry.append('items', {
 			  's_warehouse': source,
 			  't_warehouse': directionLookUp[self.direction],
+			  'basic_rate': 0.01,
+			  'valuation_rate': 0.01,
 			  'item_code': "FICHA - para envase IB de 5GL",
 			  'serial_no': validTransfers[source].SNs,
 			  'qty': validTransfers[source].count
@@ -112,6 +114,7 @@ class ReturnablesBatchTransfers(Document):
 		# frappe.throw(f"""\n\n\n ### customer_returnables: \n* * * SERVERSIDE CURTAILED * * * """)
 
 		stock_entry.save()
+		print(stock_entry)
 		stock_entry.submit()
 
 		# # frappe.throw(f"""\n\n\n ### customer_returnables: {stock_entry}\n* * * SERVERSIDE CURTAILED * * * """)

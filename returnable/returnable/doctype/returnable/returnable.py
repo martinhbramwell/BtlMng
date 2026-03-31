@@ -133,7 +133,7 @@ def getQryReturnable(returnable='%', state='%', offset=0, rows=0):
           FROM `tabLast Moves`
              WHERE Bottle LIKE '{0}'
                AND state LIKE '{1}'
-          ORDER BY last_customer desc
+          ORDER BY last_customer
            {2}
     """.format(returnable, state, limit)
 
