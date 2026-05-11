@@ -422,5 +422,14 @@
   "translatable": 0,
   "unique": 0,
   "width": null
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Customer",
+  "fieldname": "compras",
+  "fieldtype": "Table",
+  "label": "Compras",
+  "name": "Customer-compras",
+  "options": "Bought Returnable"
  }
 ]
